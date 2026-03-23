@@ -11,6 +11,10 @@ A gamified task management CLI tool with RPG-style progression.
 
 ## Installation
 
+### Prerequisites
+
+- Go 1.23 or later
+
 ### Build from Source
 
 ```bash
@@ -18,11 +22,42 @@ A gamified task management CLI tool with RPG-style progression.
 git clone https://github.com/H-BlackGom/questline.git
 cd questline
 
-# Build
-go build -o ql ./cmd/ql
+# Download dependencies
+go mod download
 
-# Optional: Move to PATH
-mv ql /usr/local/bin/
+# Build the binary
+go build -o ql ./cmd/ql
+```
+
+#### Option 1: Install to PATH (requires sudo)
+
+```bash
+# Move to system PATH (requires administrator privileges)
+sudo mv ql /usr/local/bin/
+
+# Or on macOS with Homebrew:
+# sudo mv ql /opt/homebrew/bin/
+```
+
+#### Option 2: Use without installation
+
+```bash
+# Run directly from current directory
+./ql add "My first quest"
+./ql ls
+./ql me
+
+# Or move to a user directory
+mkdir -p ~/bin
+mv ql ~/bin/
+export PATH="$HOME/bin:$PATH"
+```
+
+### Verify Installation
+
+```bash
+ql --version
+ql --help
 ```
 
 ## Quick Start
@@ -44,6 +79,67 @@ ql done abc12345
 ql me
 ```
 
+## Detailed Usage
+
+### Adding Quests
+
+```bash
+# Add a simple quest
+ql add "Complete the report"
+
+# Add a quest with a due date (YYYY-MM-DD format)
+ql add "Submit project" -d 2026-03-25
+
+# Using long flag
+ql add "Review code" --due=2026-03-26
+```
+
+### Listing Quests
+
+```bash
+# Default: Show only TODO quests
+ql ls
+
+# Show only completed quests
+ql ls --done
+ql ls -d
+
+# Show all quests (both TODO and DONE)
+ql ls --all
+ql ls -a
+```
+
+### Completing Quests
+
+```bash
+# Complete a quest (use the ID shown in ql ls)
+ql done a1b2c3d4
+
+# You'll earn 50 XP and see your progress
+# If you level up, you'll see a celebration message!
+```
+
+### Viewing Profile
+
+```bash
+# Show your current level, XP, and progress
+ql me
+
+# Example output:
+# ╔══════════════════════════════════╗
+# ║        퀘스트라인 캐릭터         ║
+# ╠══════════════════════════════════╣
+# ║  레벨: Lv.2                       ║
+# ║  칭호: Junior                      ║
+# ║  누적 XP: 150                      ║
+# ║                                  ║
+# ║  다음 레벨까지: 50/200 XP          ║
+# ║  [█████░░░░░░░░░░░░░] 25%         ║
+# ║                                  ║
+# ║  완료한 퀘스트: 3개                ║
+# ╚══════════════════════════════════╝
+```
+
 ## Commands
 
 | Command | Description |
@@ -52,6 +148,16 @@ ql me
 | `ql done <id>` | Complete a quest and earn XP |
 | `ql ls [--done\|--all]` | List quests |
 | `ql me` | Show player profile |
+
+## Error Codes
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Invalid input (e.g., empty title, invalid date format) |
+| 3 | Quest not found |
+| 4 | Database error |
 
 ## Level System
 
@@ -64,6 +170,78 @@ ql me
   - Lv.30-49: Lead
   - Lv.50-98: Principal
   - Lv.99: Guru
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+go test ./... -v
+
+# Run specific package tests
+go test ./internal/engine/...
+go test ./internal/cli/...
+go test ./internal/repository/...
+```
+
+### Project Structure
+
+```
+questline/
+├── cmd/ql/           # CLI entry point
+├── internal/
+│   ├── cli/          # CLI commands (add, done, ls, me)
+│   ├── domain/       # Domain models (Quest, Player)
+│   ├── engine/       # XP/leveling logic
+│   └── repository/   # SQLite persistence
+├── go.mod
+├── go.sum
+└── README.md
+```
+
+### Building for Different Platforms
+
+```bash
+# macOS (Intel)
+GOOS=darwin GOARCH=amd64 go build -o ql-darwin-amd64 ./cmd/ql
+
+# macOS (Apple Silicon)
+GOOS=darwin GOARCH=arm64 go build -o ql-darwin-arm64 ./cmd/ql
+
+# Linux
+GOOS=linux GOARCH=amd64 go build -o ql-linux-amd64 ./cmd/ql
+
+# Windows
+GOOS=windows GOARCH=amd64 go build -o ql-windows-amd64.exe ./cmd/ql
+```
+
+## Troubleshooting
+
+### Permission Denied
+
+If you get "permission denied" when moving the binary to `/usr/local/bin/`, use `sudo`:
+
+```bash
+sudo mv ql /usr/local/bin/
+```
+
+### Database Locked
+
+If the database is locked, make sure you're not running multiple instances of `ql` simultaneously.
+
+### Reset Data
+
+To reset all your data and start fresh:
+
+```bash
+rm ~/.questline/data.db
+```
+
+The database will be automatically recreated on the next run.
 
 ## Data Storage
 
