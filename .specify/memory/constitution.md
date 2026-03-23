@@ -1,128 +1,123 @@
 <!--
 ================================================================================
-SYNC IMPACT REPORT
-================================================================================
-Version Change: 0.0.0 → 1.0.0 (Initial ratification)
-Modified Principles: N/A (New constitution)
-Added Sections:
-  - I. 계층형 아키텍처 (Layered Architecture)
-  - II. CLI 명령어 설계 (CLI Command Design)
-  - III. 데이터 지속성 (Data Persistence)
-  - IV. RPG 게이미피케이션 (RPG Gamification)
-  - V. AI 페어 프로그래밍 (AI Pair Programming)
-  - VI. 코드 품질 및 테스트 (Code Quality & Testing)
-Removed Sections: N/A
-Templates Requiring Updates:
-  - ✅ .specify/templates/plan-template.md (Constitution Check 섹션 참조)
-  - ✅ .specify/templates/spec-template.md (요구사항 정의 시 원칙 준수)
-  - ✅ .specify/templates/tasks-template.md (작업 분리 원칙 적용)
-Follow-up TODOs: None
-================================================================================
--->
-
-# Questline Constitution (퀘스트라인 헌법)
-
-> **버전**: 1.0.0 | **최초 비준**: 2025-03-20 | **최종 개정**: 2025-03-20
-
-## 서문
-
-본 헌법은 Questline MVP 1 프로젝트의 모든 개발 활동에 적용되는 불가침의 원칙을 정의한다.
-Questline은 터미널에서 할 일을 RPG 퀘스트처럼 관리하고 완료 시 경험치(XP)를 획득하여
-레벨업하는 CLI 애플리케이션이다. 본 프로젝트는 Go 언어, Cobra CLI 프레임워크,
-pure-go SQLite, fatih/color 라이브러리를 사용하여 개발된다.
-
----
-
-## 핵심 원칙 (Core Principles)
-
-### I. 계층형 아키텍처 (Layered Architecture)
-
-**불가침 규칙**:
-- **cmd/**: Cobra CLI 명령어만 정의. 비즈니스 로직 포함 금지.
-  - 플래그 파싱, 입력 검증, 출력 포맷팅만 담당
-  - 모든 비즈니스 로직은 internal/ 패키지로 위임
-- **internal/**: 비즈니스 로직 및 도메인 모델
-  - **domain/**: 순수 Go 구조체 (Quest, Player, Status 등)
-  - **service/**: 유스케이스 및 비즈니스 규칙 (QuestService, PlayerService)
-  - **repository/**: 데이터 접근 계층 (SQLite 구현체)
-- **pkg/**: 재사용 가능한 유틸리티 (color 출력, XP 계산 등)
-
-**의거**: 관심사 분리(Separation of Concerns)를 통해 테스트 용이성과 유지보수성을 확보한다.
-CLI 프레임워크 변경 시에도 비즈니스 로직은 그대로 유지될 수 있어야 한다.
-
----
-
-### II. CLI 명령어 설계 (CLI Command Design)
-
-**불가침 규칙**:
-- 모든 명령어는 `questline <command>` 형태로 일관되게 설계
-- **add**: `questline add "퀘스트 제목" [--difficulty easy|normal|hard]`
-  - 퀘스트 생성 시 고유 ID 자동 생성 (UUID)
-  - 난이도별 XP 보상 다르게 설정 (easy: 30, normal: 50, hard: 100)
-- **done**: `questline done <quest-id>`
-  - 퀘스트 완료 시 XP 자동 지급
-  - 완료된 퀘스트는 상태 변경 및 완료 시간 기록
-- **ls**: `questline ls [--status pending|completed|all]`
-  - 기본값: pending 퀘스트만 표시
-  - 색상으로 상태 구분 (fatih/color 사용)
-- **me**: `questline me`
-  - 현재 레벨, 총 XP, 다음 레벨까지 필요 XP, 완료한 퀘스트 수 표시
-  - ASCII 아트 또는 색상으로 시각적 피드백 제공
-
-**의거**: 직관적인 명령어 구조는 사용자 경험의 핵심이다. Unix 철학을 따르는
-단순하고 조합 가능한 명령어 설계를 지향한다.
-
----
-
-### III. 데이터 지속성 (Data Persistence)
-
-**불가침 규칙**:
-- 데이터 저장 위치: `~/.questline/data.db` (SQLite)
-- **pure-go SQLite** 사용 (mattn/go-sqlite3 의 CGO-free 대안 또는 유사)
-- 데이터베이스 스키마 버전 관리 필수 (마이그레이션 지원)
-- 초기화 시 `~/.questline/` 디렉토리 자동 생성
-- 백업 및 복구 메커니즘 고려 (향후 확장)
-
-**스키마 설계 원칙**:
-```sql
--- quests 테이블
-CREATE TABLE quests (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    difficulty TEXT DEFAULT 'normal',
-    status TEXT DEFAULT 'pending',
-    xp_reward INTEGER DEFAULT 50,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    completed_at DATETIME
-);
-
--- player_stats 테이블
-CREATE TABLE player_stats (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    level INTEGER DEFAULT 1,
-    total_xp INTEGER DEFAULT 0,
-    quests_completed INTEGER DEFAULT 0
-);
-```
-
-**의거**: 로컬 파일 기반 저장은 오프라인 사용과 개인정보 보호를 보장한다.
-pure-go 구현은 크로스 컴파일과 단일 바이너리 배포를 가능하게 한다.
-
----
-
-### IV. RPG 게이미피케이션 (RPG Gamification)
-
-**불가침 규칙**:
-- **XP 시스템**: 퀘스트 완료 시 XP 획득 (기본 50 XP)
-- **레벨업 공식**: `required_xp = level * 100`
-  - 예: 레벨 1→2: 100 XP 필요, 레벨 2→3: 200 XP 필요
-- **레벨업 시**: 콘솔에 축하 메시지 및 색상 출력 (fatih/color)
-- **시각적 피드백**:
-  - `me` 명령어: 진행 바(progress bar)로 다음 레벨까지 진행도 표시
-  - `ls` 명령어: 완료된 퀘스트는 초록색, 미완료는 노란색으로 표시
-
-**의거**: 게이미피케이션은 할 일 관리의 지속 가능한 동기부여를 제공한다.
-즉각적인 피드백 루프는 사용자 참여도를 높인다.
+3: SYNC IMPACT REPORT
+4: ================================================================================
+5: Version Change: 1.0.0 → 1.0.1 (MVP1 Policy Alignment)
+6: Modified Principles: I (Architecture), II (CLI), III (Data), IV (Gamification)
+7: Added Sections:
+8:   - MVP1 Scope Guard (Section II)
+9: Removed Sections: N/A
+10: Templates Requiring Updates: N/A
+11: Follow-up TODOs: None
+12: ================================================================================
+13: -->
+14: 
+15: # Questline Constitution (퀘스트라인 헌법)
+16: 
+17: > **버전**: 1.0.1 | **최초 비준**: 2025-03-20 | **최종 개정**: 2026-03-23
+18: 
+19: ## 서문
+20: 
+21: 본 헌법은 Questline MVP 1 프로젝트의 모든 개발 활동에 적용되는 불가침의 원칙을 정의한다.
+22: Questline은 터미널에서 할 일을 RPG 퀘스트처럼 관리하고 완료 시 경험치(XP)를 획득하여
+23: 레벨업하는 CLI 애플리케이션이다. 본 프로젝트는 Go 언어, Cobra CLI 프레임워크,
+24: pure-go SQLite, fatih/color 라이브러리를 사용하여 개발된다.
+25: 
+26: ---
+27: 
+28: ## 핵심 원칙 (Core Principles)
+29: 
+30: ### I. 계층형 아키텍처 (Layered Architecture)
+31: 
+32: **불가침 규칙**:
+33: - **cmd/**: Cobra CLI 명령어 진입점 (`cmd/ql/main.go`).
+34: - **internal/**: 비즈니스 로직 및 도메인 모델
+35:   - **domain/**: 순수 Go 구조체 (Quest, Player, Status 등)
+36:   - **cli/**: Cobra 명령어 구현 (add, done, ls, me)
+37:   - **engine/**: 비즈니스 규칙 (XP/레벨링 계산)
+38:   - **repository/**: 데이터 접근 계층 (SQLite 구현체)
+39: 
+40: **의거**: 관심사 분리(Separation of Concerns)를 통해 테스트 용이성과 유지보수성을 확보한다.
+41: CLI 프레임워크 변경 시에도 비즈니스 로직은 그대로 유지될 수 있어야 한다.
+42: 
+43: ---
+44: 
+45: ### II. CLI 명령어 설계 (CLI Command Design)
+46: 
+47: **불가침 규칙**:
+48: - 모든 명령어는 `ql <command>` 형태로 일관되게 설계
+49: - **add**: `ql add "퀘스트 제목" [-d YYYY-MM-DD]`
+50:   - 퀘스트 생성 시 고유 ID 자동 생성 (UUID v4 앞 8자)
+51:   - 고정 XP 보상: 퀘스트 완료 시 항상 50 XP
+52:   - 날짜 형식: `YYYY-MM-DD`만 허용
+53: - **done**: `ql done <quest-id>`
+54:   - 퀘스트 완료 시 XP 자동 지급 (고정 50 XP)
+55:   - 완료된 퀘스트는 상태 변경 및 완료 시간 기록
+56: - **ls**: `ql ls [--done|--all]`
+57:   - 기본값: TODO 퀘스트만 표시
+58:   - 색상으로 상태 구분
+59: - **me**: `ql me`
+60:   - 현재 레벨, 총 XP, 다음 레벨까지 필요 XP, 완료한 퀘스트 수 표시
+61:   - ASCII 아트 또는 색상으로 시각적 피드백 제공
+62: 
+63: **MVP1 범위 가드 (Scope Guard)**:
+64: - 난이도 시스템 (Easy/Normal/Hard) 배제
+65: - 가변 XP 보상 배제 (항상 50 XP)
+66: - 자연어 날짜 파싱 배제 (`YYYY-MM-DD` 고정)
+67: 
+68: **의거**: 직관적인 명령어 구조는 사용자 경험의 핵심이다. Unix 철학을 따르는
+69: 단순하고 조합 가능한 명령어 설계를 지향한다.
+70: 
+71: ---
+72: 
+73: ### III. 데이터 지속성 (Data Persistence)
+74: 
+75: **불가침 규칙**:
+76: - 데이터 저장 위치: `~/.questline/data.db` (SQLite)
+77: - **pure-go SQLite** 사용 (mattn/go-sqlite3 의 CGO-free 대안 또는 유사)
+78: - 데이터베이스 스키마 버전 관리 필수 (마이그레이션 지원)
+79: - 초기화 시 `~/.questline/` 디렉토리 자동 생성
+80: - 백업 및 복구 메커니즘 고려 (향후 확장)
+81: 
+82: **스키마 설계 원칙**:
+83: ```sql
+84: -- quests 테이블
+85: CREATE TABLE quests (
+86:     id TEXT PRIMARY KEY,
+87:     title TEXT NOT NULL,
+88:     status TEXT DEFAULT 'pending',
+89:     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+90:     completed_at DATETIME,
+91:     due_date TEXT
+92: );
+93: 
+94: -- player_stats 테이블
+95: CREATE TABLE player_stats (
+96:     id INTEGER PRIMARY KEY CHECK (id = 1),
+97:     level INTEGER DEFAULT 1,
+98:     total_xp INTEGER DEFAULT 0,
+99:     quests_completed INTEGER DEFAULT 0
+100: );
+101: ```
+102: 
+103: **의거**: 로컬 파일 기반 저장은 오프라인 사용과 개인정보 보호를 보장한다.
+104: pure-go 구현은 크로스 컴파일과 단일 바이너리 배포를 가능하게 한다.
+105: 
+106: ---
+107: 
+108: ### IV. RPG 게이미피케이션 (RPG Gamification)
+109: 
+110: **불가침 규칙**:
+111: - **XP 시스템**: 퀘스트 완료 시 XP 획득 (기본 50 XP)
+112: - **레벨업 공식**: `required_xp = 100 + (level * 50)`
+113:   - 예: 레벨 1→2: 150 XP 필요, 레벨 2→3: 200 XP 필요
+114: - **레벨업 시**: 콘솔에 축하 메시지 및 색상 출력 (fatih/color)
+115: - **시각적 피드백**:
+116:   - `me` 명령어: 진행 바(progress bar)로 다음 레벨까지 진행도 표시
+117:   - `ls` 명령어: 완료된 퀘스트는 초록색, 미완료는 노란색으로 표시
+118: 
+119: **의거**: 게이미피케이션은 할 일 관리의 지속 가능한 동기부여를 제공한다.
+120: 즉각적인 피드백 루프는 사용자 참여도를 높인다.
 
 ---
 
@@ -192,30 +187,23 @@ Go의 철학인 "명시적이고 간결한 코드"를 따른다.
 ```
 questline/
 ├── cmd/
-│   ├── root.go          # Cobra root command
-│   ├── add.go           # questline add
-│   ├── done.go          # questline done
-│   ├── ls.go            # questline ls
-│   └── me.go            # questline me
+│   └── ql/
+│       └── main.go      # CLI entry point
 ├── internal/
+│   ├── cli/             # CLI commands (add, done, ls, me)
 │   ├── domain/
 │   │   ├── quest.go     # Quest struct
 │   │   └── player.go    # Player struct
-│   ├── service/
-│   │   ├── quest_service.go
-│   │   └── player_service.go
+│   ├── engine/          # XP/leveling logic
 │   └── repository/
 │       ├── sqlite.go    # DB connection
 │       ├── quest_repo.go
 │       └── player_repo.go
-├── pkg/
-│   ├── color/           # fatih/color wrapper
-│   └── xp/              # XP calculation utilities
-├── main.go
 ├── go.mod
-└── go.sum
+├── go.sum
+└── README.md
 ```
 
 ---
 
-**Version**: 1.0.0 | **Ratified**: 2025-03-20 | **Last Amended**: 2025-03-20
+**Version**: 1.0.1 | **Ratified**: 2025-03-20 | **Last Amended**: 2026-03-23

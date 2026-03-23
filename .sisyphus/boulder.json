@@ -1,16 +1,12 @@
 {
-  "active_plan": "/Users/hyoungrolee/Documents/1_Project/01_dev/questline/.sisyphus/plans/questline-mvp1-execution.md",
-  "started_at": "2026-03-23T05:41:21.405Z",
+  "active_plan": "/Users/hyoungrolee/Documents/1_Project/01_dev/questline/.sisyphus/plans/agent-guidelines-hierarchy-execution.md",
+  "started_at": "2026-03-23T07:28:14.498Z",
   "session_ids": [
-    "ses_2e6e356a5ffe8ImBVGnDPfB5IZ",
-    "ses_2e6c8ae48ffebLpngNRQKe25uf",
-    "ses_2e6c77e92ffeutxCoPGWJX25qA",
-    "ses_2e6c07479ffeEAS43AesjrlLgD",
-    "ses_2e6bf0ce8ffeFjzsjxfKI7bpAj",
     "ses_2e6bd1499ffeSSfKKAX5Rcq6hn",
-    "ses_2e6bc4ce1ffeNCM6OIM7u9CS1y",
-    "ses_2e6a48bdfffeeiMNrpzPmw19DO"
+    "ses_2e6644611ffeBgktjVDHrnkBrA",
+    "ses_2e65a00baffepV36dz3EHb2HdF",
+    "ses_2e658fb3bffe3VaXa921bnj2JQ"
   ],
-  "plan_name": "questline-mvp1-execution",
+  "plan_name": "agent-guidelines-hierarchy-execution",
   "agent": "atlas"
 }
