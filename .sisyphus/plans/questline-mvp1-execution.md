@@ -324,7 +324,7 @@ Wave 4: 문서/quickstart/README 정렬
 
   **Commit**: YES | Message: `feat: implement ql done` | Files: `internal/cli/done.go`, `internal/cli/done_test.go`, `internal/repository/sqlite.go`, `internal/repository/sqlite_test.go`, `internal/engine/leveling.go`
 
-- [ ] 6. `ql ls` 필터/정렬/빈 상태 출력 구현
+- [x] 6. `ql ls` 필터/정렬/빈 상태 출력 구현
 
   **What to do**: `internal/cli/ls.go`와 목록 조회용 repository API를 구현한다. 기본 동작은 `TODO`만 보여주고, `--done`은 `DONE`만, `--all`은 전체를 보여준다. `--all`과 `--done` 동시 사용은 종료 코드 `2`의 잘못된 인자로 고정한다. 출력은 헤더가 있는 표 형식이며 정렬 기준은 `created_at DESC`, tie-break는 `id ASC`다. title은 자르지 않고 그대로 출력하며 due date는 있으면 `MM-DD`, 없으면 `-`로 렌더링한다. 첫 실행/빈 데이터 시에는 `퀘스트가 없습니다. 'ql add'로 새 퀘스트를 만들어보세요!`를 출력한다.
   **Must NOT do**: 완료/전체 플래그 동시 허용, 임의 정렬, 제목 자동 말줄임표 처리, 빈 목록에서 table 헤더만 덩그러니 출력.
@@ -365,7 +365,7 @@ Wave 4: 문서/quickstart/README 정렬
 
   **Commit**: YES | Message: `feat: implement ql ls` | Files: `internal/cli/ls.go`, `internal/cli/ls_test.go`, `internal/repository/sqlite.go`, `internal/repository/sqlite_test.go`
 
-- [ ] 7. `ql me` 상태 패널과 진행 바 구현
+- [x] 7. `ql me` 상태 패널과 진행 바 구현
 
   **What to do**: `internal/cli/me.go`를 구현하고 첫 실행에도 자동 bootstrap 경로를 사용한다. 출력은 계약서 예시처럼 박스형 패널을 사용하고, 내부 논리 기준 필드는 순서대로 `레벨`, `칭호`, `누적 XP`, `다음 레벨까지`, 20칸 진행 바, `완료한 퀘스트`를 포함한다. 첫 실행 출력은 `Lv.1`, `Intern`, `누적 XP: 0`, `다음 레벨까지: 0/150 XP`, `완료한 퀘스트: 0개`를 보여줘야 한다. 진행 바는 `current_xp / required_xp` 비율을 기반으로 채우며, 색상은 있어도 테스트는 ANSI 제거 후 논리 라인만 검증한다.
   **Must NOT do**: `me` 실행을 위해 사전 데이터 초기화를 수동으로 요구, 임의 필드 추가, progress bar 길이 변경, exact spacing만을 테스트 핵심으로 삼기.
@@ -406,7 +406,7 @@ Wave 4: 문서/quickstart/README 정렬
 
   **Commit**: YES | Message: `feat: implement ql me` | Files: `internal/cli/me.go`, `internal/cli/me_test.go`, `internal/cli/root.go`, `internal/repository/sqlite.go`
 
-- [ ] 8. README/quickstart 정렬 및 end-to-end 스모크 검증
+- [x] 8. README/quickstart 정렬 및 end-to-end 스모크 검증
 
   **What to do**: 구현 결과에 맞춰 `README.md`와 `specs/001-questline-mvp1/quickstart.md`를 정리한다. quickstart에는 `tmr`, difficulty, 릴리스 자동화, Homebrew 설치 같은 MVP1 외 항목을 제거하거나 후속 범위로 명시한다. temp HOME을 사용하는 end-to-end 스모크 스크립트 또는 테스트를 추가하여 `add → ls → done → me → ls --done` 전체 플로우를 검증한다. 최종 사용자 문서는 실제 구현된 종료 코드와 입력 형식(`YYYY-MM-DD`)을 반영해야 한다.
   **Must NOT do**: 구현되지 않은 배포/설치 경로를 확정된 기능처럼 문서화, 수동 검증 지시만 남기기, source-of-truth와 다른 CLI 예시 유지.
@@ -451,10 +451,10 @@ Wave 4: 문서/quickstart/README 정렬
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 > **Do NOT auto-proceed after verification. Wait for user's explicit approval before marking work complete.**
 > **Never mark F1-F4 as checked before getting user's okay.** Rejection or user feedback -> fix -> re-run -> present again -> wait for okay.
-- [ ] F1. Plan Compliance Audit — oracle
-- [ ] F2. Code Quality Review — unspecified-high
-- [ ] F3. Real Manual QA — unspecified-high
-- [ ] F4. Scope Fidelity Check — deep
+- [x] F1. Plan Compliance Audit — oracle
+- [x] F2. Code Quality Review — unspecified-high
+- [x] F3. Real Manual QA — unspecified-high
+- [x] F4. Scope Fidelity Check — deep
 
 ## Commit Strategy
 - 커밋은 수직 슬라이스 단위로 끊고, 각 커밋마다 `go test ./...`와 `go vet ./...`가 통과해야 한다.
