@@ -239,7 +239,7 @@ Wave 4: 문서/quickstart/README 정렬
 
   **Commit**: YES | Message: `feat: add quest engine core` | Files: `internal/engine/leveling.go`, `internal/engine/leveling_test.go`, `internal/domain/player.go`, `internal/domain/quest.go`
 
-- [ ] 4. `ql add` 구현과 날짜 검증 계약 고정
+- [x] 4. `ql add` 구현과 날짜 검증 계약 고정
 
   **What to do**: `internal/cli/add.go`를 구현하고 `root.go`에 등록한다. 입력 계약은 `ql add "<title>" [-d YYYY-MM-DD]`만 허용한다. 제목은 trim 후 비어 있지 않고 200자 이하, due date는 today-or-later 규칙을 적용한다. 성공 시 `✓ 퀘스트 #<id> 생성됨: "<title>"`를 출력하고, ID는 저장/표시 모두 8자 문자열을 사용한다. 잘못된 인자는 종료 코드 `2`, DB/bootstrap 오류는 종료 코드 `4`로 고정한다. `internal/repository`에는 quest insert와 조회에 필요한 최소 API를 추가하고 `internal/cli/add_test.go` 또는 이에 준하는 black-box 테스트를 만든다.
   **Must NOT do**: `-d tmr`, difficulty 플래그, 제목 자동 잘림, ANSI 색상 의존 테스트.
@@ -281,7 +281,7 @@ Wave 4: 문서/quickstart/README 정렬
 
   **Commit**: YES | Message: `feat: implement ql add` | Files: `internal/cli/add.go`, `internal/cli/add_test.go`, `internal/cli/root.go`, `internal/repository/sqlite.go`, `internal/repository/sqlite_test.go`
 
-- [ ] 5. `ql done` 트랜잭션과 XP 지급 구현
+- [x] 5. `ql done` 트랜잭션과 XP 지급 구현
 
   **What to do**: `internal/cli/done.go`와 관련 테스트를 구현한다. `done`는 quest 존재 확인, 이미 `DONE` 여부 확인, quest 상태 변경, `completed_at` 기록, player XP/레벨/완료 수 갱신을 하나의 DB 트랜잭션으로 처리해야 한다. 성공 출력은 기본 `✓ 퀘스트 완료! +50 XP`이며, 레벨업이 발생하면 이어서 `🎉 레벨업! Lv.X → Lv.Y`, `칭호: ...`, `다음 레벨까지: CUR/REQ XP`를 출력한다. 잘못된 인자 없음은 종료 코드 `2`, 미존재 quest는 `3`, 이미 완료된 quest는 `1`, DB 오류는 `4`로 고정한다. success/error 출력에 색상을 적용하되 테스트는 ANSI 제거 후 핵심 텍스트를 검증한다.
   **Must NOT do**: 재완료 시 XP 재지급, `DROPPED` 전이 처리, 난이도별 XP, 사람이 수동으로 DB를 손봐야 하는 보정 로직.
