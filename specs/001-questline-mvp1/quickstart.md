@@ -19,9 +19,12 @@ go mod download
 # 빌드
 go build -o ql ./cmd/ql
 
-# PATH에 추가 (선택)
+# PATH에 추가 (선택) - sudo 필요
 chmod +x ql
 sudo mv ql /usr/local/bin/
+
+# 또는 현재 디렉토리에서 바로 사용
+./ql add "Test quest"
 ```
 
 ### 방법 2: 릴리스 바이너리 (MVP2 - 예정)

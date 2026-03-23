@@ -27,7 +27,6 @@ Questline MVP 1의 핵심 데이터 모델은 두 개의 엔티티로 구성됩�
 | title | string | Yes | - | 퀘스트 제목 |
 | status | Status | Yes | TODO | TODO, DONE, DROPPED |
 | due_date | *time.Time | No | nil | 마감일 (선택, YYYY-MM-DD) |
-| due_date | *time.Time | No | nil | 마감일 (선택) |
 | created_at | time.Time | Yes | now | 생성 시간 |
 | completed_at | *time.Time | No | nil | 완료 시간 |
 
