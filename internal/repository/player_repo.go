@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -21,9 +22,9 @@ func NewPlayerRepository(repo *Repository) *PlayerRepository {
 func (pr *PlayerRepository) Get() (*domain.Player, error) {
 	var player domain.Player
 	var updatedAt string
-	var flowStatus string
-	var lastSyncedAt string
-	var lastEvaluated string
+	var flowStatus sql.NullString
+	var lastSyncedAt sql.NullString
+	var lastEvaluated sql.NullString
 	err := pr.repo.db.QueryRow(
 		`SELECT id, level, current_xp, total_xp_earned, quests_completed, updated_at,
 		        flow_status, last_synced_at, last_evaluated, streak_days
@@ -44,15 +45,21 @@ func (pr *PlayerRepository) Get() (*domain.Player, error) {
 		return nil, fmt.Errorf("failed to get player: %w", err)
 	}
 
-	player.FlowStatus = domain.FlowStatus(flowStatus)
+	if flowStatus.Valid {
+		player.FlowStatus = domain.FlowStatus(flowStatus.String)
+	}
 	if t, ok := parseDBTime(updatedAt); ok {
 		player.UpdatedAt = t
 	}
-	if t, ok := parseDBTime(lastSyncedAt); ok {
-		player.LastSyncedAt = &t
+	if lastSyncedAt.Valid {
+		if t, ok := parseDBTime(lastSyncedAt.String); ok {
+			player.LastSyncedAt = &t
+		}
 	}
-	if t, ok := parseDBTime(lastEvaluated); ok {
-		player.LastEvaluated = &t
+	if lastEvaluated.Valid {
+		if t, ok := parseDBTime(lastEvaluated.String); ok {
+			player.LastEvaluated = &t
+		}
 	}
 
 	return &player, nil
@@ -60,20 +67,16 @@ func (pr *PlayerRepository) Get() (*domain.Player, error) {
 
 // Update updates the player
 func (pr *PlayerRepository) Update(player *domain.Player) error {
-	lastSynced := ""
+	var lastSynced interface{}
 	if player.LastSyncedAt != nil {
 		lastSynced = player.LastSyncedAt.Format(time.RFC3339)
-	} else {
-		lastSynced = time.Now().UTC().Format(time.RFC3339)
 	}
-	lastEvaluated := ""
+	var lastEvaluated interface{}
 	if player.LastEvaluated != nil {
 		lastEvaluated = player.LastEvaluated.Format(time.RFC3339)
-	} else {
-		lastEvaluated = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	_, err := pr.repo.db.Exec(
+	result, err := pr.repo.db.Exec(
 		`UPDATE player SET level = ?, current_xp = ?, total_xp_earned = ?, 
 		 quests_completed = ?, flow_status = ?, last_synced_at = ?, last_evaluated = ?,
 		 streak_days = ?, updated_at = datetime('now') WHERE id = 1`,
@@ -89,6 +92,49 @@ func (pr *PlayerRepository) Update(player *domain.Player) error {
 	if err != nil {
 		return fmt.Errorf("failed to update player: %w", err)
 	}
+	if err := assertSinglePlayerUpdated(result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *PlayerRepository) UpdateFlowStatus(status domain.FlowStatus) error {
+	result, err := pr.repo.db.Exec(
+		`UPDATE player SET flow_status = ?, last_evaluated = ?, updated_at = datetime('now') WHERE id = 1`,
+		string(status),
+		time.Now().UTC().Format("2006-01-02"),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update player flow status: %w", err)
+	}
+	if err := assertSinglePlayerUpdated(result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *PlayerRepository) UpdateSyncTime(syncedAt time.Time) error {
+	result, err := pr.repo.db.Exec(
+		`UPDATE player SET last_synced_at = ?, updated_at = datetime('now') WHERE id = 1`,
+		syncedAt.UTC().Format(time.RFC3339),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update player sync time: %w", err)
+	}
+	if err := assertSinglePlayerUpdated(result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func assertSinglePlayerUpdated(result sql.Result) error {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to inspect player update rows: %w", err)
+	}
+	if affected != 1 {
+		return sql.ErrNoRows
+	}
 	return nil
 }
 
@@ -97,6 +143,9 @@ func parseDBTime(value string) (time.Time, bool) {
 		return t, true
 	}
 	if t, err := time.Parse("2006-01-02 15:04:05", value); err == nil {
+		return t.UTC(), true
+	}
+	if t, err := time.Parse("2006-01-02", value); err == nil {
 		return t.UTC(), true
 	}
 	return time.Time{}, false

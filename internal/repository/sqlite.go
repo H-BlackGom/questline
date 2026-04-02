@@ -53,7 +53,10 @@ func (r *Repository) initSchema() error {
 
 	switch version {
 	case schemaVersionV2:
-		return r.ensurePlayerSingleton()
+		if err := r.ensurePlayerSingleton(); err != nil {
+			return err
+		}
+		return r.ensureV2SupportTables()
 	case schemaVersionV1:
 		return r.migrateV1ToV2()
 	case 0:
@@ -108,6 +111,12 @@ func (r *Repository) createFreshV2Schema() (err error) {
 	if err = createPlayerV2Table(tx, "player"); err != nil {
 		return err
 	}
+	if err = createQuestHistoryV2Table(tx, "quest_history"); err != nil {
+		return err
+	}
+	if err = createDailyEvaluationV2Table(tx, "daily_evaluation"); err != nil {
+		return err
+	}
 	if err = ensurePlayerSingletonTx(tx); err != nil {
 		return err
 	}
@@ -136,6 +145,12 @@ func (r *Repository) migrateV1ToV2() (err error) {
 		return err
 	}
 	if err = createPlayerV2Table(tx, "player_new"); err != nil {
+		return err
+	}
+	if err = createQuestHistoryV2Table(tx, "quest_history"); err != nil {
+		return err
+	}
+	if err = createDailyEvaluationV2Table(tx, "daily_evaluation"); err != nil {
 		return err
 	}
 
@@ -225,17 +240,22 @@ func createQuestsV2Table(tx *sql.Tx, tableName string) error {
 		CREATE TABLE %s (
 			id TEXT PRIMARY KEY,
 			title TEXT NOT NULL,
-			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'archived', 'pending_completion')),
+			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'pending_completion', 'completed', 'archived')),
 			due_date TEXT,
 			created_at TEXT NOT NULL,
 			completed_at TEXT,
-			type TEXT NOT NULL DEFAULT 'daily',
+			type TEXT NOT NULL DEFAULT 'daily' CHECK (type IN ('daily', 'weekly', 'epic', 'guild', 'sub')),
 			parent_id TEXT,
 			scheduled_date TEXT,
 			deleted_at TEXT,
-			FOREIGN KEY (parent_id) REFERENCES quests(id)
+			FOREIGN KEY (parent_id) REFERENCES quests(id) ON DELETE CASCADE
 		);
-	`, tableName)
+		CREATE INDEX IF NOT EXISTS idx_quests_type ON %s(type);
+		CREATE INDEX IF NOT EXISTS idx_quests_status ON %s(status);
+		CREATE INDEX IF NOT EXISTS idx_quests_parent ON %s(parent_id);
+		CREATE INDEX IF NOT EXISTS idx_quests_scheduled ON %s(scheduled_date);
+		CREATE INDEX IF NOT EXISTS idx_quests_deleted ON %s(deleted_at);
+	`, tableName, tableName, tableName, tableName, tableName, tableName)
 
 	if _, err := tx.Exec(query); err != nil {
 		return fmt.Errorf("failed to create %s table: %w", tableName, err)
@@ -258,6 +278,49 @@ func createPlayerV2Table(tx *sql.Tx, tableName string) error {
 			streak_days INTEGER NOT NULL DEFAULT 0
 		);
 	`, tableName)
+
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("failed to create %s table: %w", tableName, err)
+	}
+	return nil
+}
+
+func createQuestHistoryV2Table(tx *sql.Tx, tableName string) error {
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			quest_id TEXT NOT NULL,
+			date TEXT NOT NULL,
+			status TEXT NOT NULL,
+			completed BOOLEAN DEFAULT FALSE,
+			xp_earned INTEGER DEFAULT 0,
+			created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY (quest_id) REFERENCES quests(id) ON DELETE CASCADE,
+			UNIQUE (quest_id, date)
+		);
+		CREATE INDEX IF NOT EXISTS idx_history_quest ON %s(quest_id);
+		CREATE INDEX IF NOT EXISTS idx_history_date ON %s(date);
+	`, tableName, tableName, tableName)
+
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("failed to create %s table: %w", tableName, err)
+	}
+	return nil
+}
+
+func createDailyEvaluationV2Table(tx *sql.Tx, tableName string) error {
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			date TEXT NOT NULL UNIQUE,
+			total_routines INTEGER NOT NULL,
+			completed_routines INTEGER NOT NULL,
+			completion_rate REAL NOT NULL,
+			flow_grade TEXT NOT NULL CHECK (flow_grade IN ('burning', 'smooth', 'hazy')),
+			evaluated_at TEXT DEFAULT (datetime('now'))
+		);
+		CREATE INDEX IF NOT EXISTS idx_evaluation_date ON %s(date);
+	`, tableName, tableName)
 
 	if _, err := tx.Exec(query); err != nil {
 		return fmt.Errorf("failed to create %s table: %w", tableName, err)
@@ -299,6 +362,28 @@ func ensurePlayerSingletonTx(tx *sql.Tx) error {
 		`); err != nil {
 			return fmt.Errorf("failed to create initial player: %w", err)
 		}
+	}
+	return nil
+}
+
+func (r *Repository) ensureV2SupportTables() error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin support-table transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if err := createQuestHistoryV2Table(tx, "quest_history"); err != nil {
+		return err
+	}
+	if err := createDailyEvaluationV2Table(tx, "daily_evaluation"); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit support-table transaction: %w", err)
 	}
 	return nil
 }
