@@ -20,10 +20,7 @@ func init() {
 }
 
 func runMe(cmd *cobra.Command, args []string) error {
-	// Get database path
 	dbPath := GetDBPath()
-
-	// Initialize repository
 	repo, err := repository.New(dbPath)
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 데이터베이스 초기화 실패: %v\n", err)
@@ -31,7 +28,6 @@ func runMe(cmd *cobra.Command, args []string) error {
 	}
 	defer repo.Close()
 
-	// Get player
 	playerRepo := repository.NewPlayerRepository(repo)
 	player, err := playerRepo.Get()
 	if err != nil {
@@ -43,21 +39,42 @@ func runMe(cmd *cobra.Command, args []string) error {
 	progress := getProgressBar(player.CurrentXP, requiredXP, 20)
 	progressPercent := (player.CurrentXP * 100) / requiredXP
 
-	// Print profile box
+	boxWidth := 32
+
 	fmt.Fprintln(cmd.OutOrStdout(), "╔══════════════════════════════════╗")
-	fmt.Fprintln(cmd.OutOrStdout(), "║        퀘스트라인 캐릭터         ║")
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineCenter("퀘스트라인 캐릭터", boxWidth))
 	fmt.Fprintln(cmd.OutOrStdout(), "╠══════════════════════════════════╣")
-	fmt.Fprintf(cmd.OutOrStdout(), "║  레벨: Lv.%d%s║\n", player.Level, strings.Repeat(" ", 24-len(fmt.Sprintf("%d", player.Level))))
-	fmt.Fprintf(cmd.OutOrStdout(), "║  칭호: %s%s║\n", engine.GetTitle(player.Level), strings.Repeat(" ", 24-len(engine.GetTitle(player.Level))))
-	fmt.Fprintf(cmd.OutOrStdout(), "║  누적 XP: %d%s║\n", player.TotalXPEarned, strings.Repeat(" ", 21-len(fmt.Sprintf("%d", player.TotalXPEarned))))
-	fmt.Fprintln(cmd.OutOrStdout(), "║                                  ║")
-	fmt.Fprintf(cmd.OutOrStdout(), "║  다음 레벨까지: %d/%d XP%s║\n", player.CurrentXP, requiredXP, strings.Repeat(" ", 15-len(fmt.Sprintf("%d/%d", player.CurrentXP, requiredXP))))
-	fmt.Fprintf(cmd.OutOrStdout(), "║  [%s] %d%%%s║\n", progress, progressPercent, strings.Repeat(" ", 16-len(fmt.Sprintf("%d", progressPercent))))
-	fmt.Fprintln(cmd.OutOrStdout(), "║                                  ║")
-	fmt.Fprintf(cmd.OutOrStdout(), "║  완료한 퀘스트: %d개%s║\n", player.QuestsCompleted, strings.Repeat(" ", 20-len(fmt.Sprintf("%d", player.QuestsCompleted))))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("레벨: Lv.%d", player.Level), boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("칭호: %s", engine.GetTitle(player.Level)), boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("누적 XP: %d", player.TotalXPEarned), boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft("", boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("다음 레벨까지: %d/%d XP", player.CurrentXP, requiredXP), boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("[%s] %d%%", progress, progressPercent), boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft("", boxWidth))
+	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("완료한 퀘스트: %d개", player.QuestsCompleted), boxWidth))
 	fmt.Fprintln(cmd.OutOrStdout(), "╚══════════════════════════════════╝")
 
 	return nil
+}
+
+func formatBoxLineLeft(content string, boxWidth int) string {
+	contentWidth := displayWidth(content)
+	padding := boxWidth - contentWidth - 2
+	if padding < 0 {
+		padding = 0
+	}
+	return "║  " + content + strings.Repeat(" ", padding) + "║"
+}
+
+func formatBoxLineCenter(content string, boxWidth int) string {
+	contentWidth := displayWidth(content)
+	padding := boxWidth - contentWidth
+	if padding < 0 {
+		padding = 0
+	}
+	leftPad := padding / 2
+	rightPad := padding - leftPad
+	return "║" + strings.Repeat(" ", leftPad) + content + strings.Repeat(" ", rightPad) + "║"
 }
 
 func getProgressBar(current, required, width int) string {

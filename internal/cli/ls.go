@@ -9,6 +9,39 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func displayWidth(s string) int {
+	width := 0
+	for _, r := range s {
+		if r < 127 {
+			width++
+		} else {
+			width += 2
+		}
+	}
+	return width
+}
+
+func truncateDisplay(s string, maxWidth int) string {
+	if displayWidth(s) <= maxWidth {
+		return s
+	}
+
+	result := ""
+	width := 0
+	for _, r := range s {
+		runeWidth := 1
+		if r >= 127 {
+			runeWidth = 2
+		}
+		if width+runeWidth > maxWidth-3 {
+			break
+		}
+		result += string(r)
+		width += runeWidth
+	}
+	return result + "..."
+}
+
 var (
 	listAll  bool
 	listDone bool
@@ -78,7 +111,9 @@ func runList(cmd *cobra.Command, args []string) error {
 		if q.DueDate != nil {
 			dueStr = q.DueDate.Format("01-02")
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", q.ID, q.Title, q.Status, dueStr)
+		// Truncate title to max 35 display width to maintain table alignment
+		truncatedTitle := truncateDisplay(q.Title, 35)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", q.ID, truncatedTitle, q.Status, dueStr)
 	}
 
 	w.Flush()
