@@ -29,7 +29,7 @@ func TestAddCommand(t *testing.T) {
 		},
 		{
 			name:       "Add quest with due date",
-			args:       []string{"add", "Write docs", "-d", "2026-03-24"},
+			args:       []string{"add", "Write docs", "-d", "2026-12-31"},
 			wantErr:    false,
 			wantOutput: "✓ 퀘스트 #",
 		},
