@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/H-BlackGom/questline/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +13,8 @@ var rootCmd = &cobra.Command{
 	Short: "Questline - gamified task management",
 	Long:  "A CLI tool for managing tasks with RPG-style progression",
 }
+
+var bootstrap = service.Bootstrap
 
 // Execute runs the root command
 func Execute() error {
@@ -36,4 +39,8 @@ func EnsureDataDir() error {
 	dbPath := GetDBPath()
 	dir := filepath.Dir(dbPath)
 	return os.MkdirAll(dir, 0755)
+}
+
+func loadServices() (*service.Services, error) {
+	return bootstrap(GetDBPath())
 }

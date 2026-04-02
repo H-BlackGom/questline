@@ -5,7 +5,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/H-BlackGom/questline/internal/domain"
-	"github.com/H-BlackGom/questline/internal/repository"
+	"github.com/H-BlackGom/questline/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -66,29 +66,25 @@ func runList(cmd *cobra.Command, args []string) error {
 		return ErrInvalidInput
 	}
 
-	// Get database path
-	dbPath := GetDBPath()
-
-	// Initialize repository
-	repo, err := repository.New(dbPath)
+	services, err := loadServices()
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 데이터베이스 초기화 실패: %v\n", err)
 		return ErrDatabase
 	}
-	defer repo.Close()
+	defer services.Close()
 
-	// Get quests
-	questRepo := repository.NewQuestRepository(repo)
-	var quests []*domain.Quest
+	var filter service.QuestFilter
 
 	switch {
 	case listAll:
-		quests, err = questRepo.ListAll()
+		filter = service.QuestFilter{}
 	case listDone:
-		quests, err = questRepo.ListDone()
+		filter = service.QuestFilter{Statuses: []domain.QuestStatus{domain.StatusCompleted}}
 	default:
-		quests, err = questRepo.ListByStatus(domain.StatusTODO)
+		filter = service.QuestFilter{Statuses: []domain.QuestStatus{domain.StatusPending}}
 	}
+
+	quests, err := services.Quest.ListQuests(filter)
 
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 퀘스트 목록 조회 실패: %v\n", err)

@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/H-BlackGom/questline/internal/domain"
 )
@@ -21,8 +21,12 @@ func NewPlayerRepository(repo *Repository) *PlayerRepository {
 func (pr *PlayerRepository) Get() (*domain.Player, error) {
 	var player domain.Player
 	var updatedAt string
+	var flowStatus string
+	var lastSyncedAt string
+	var lastEvaluated string
 	err := pr.repo.db.QueryRow(
-		`SELECT id, level, current_xp, total_xp_earned, quests_completed, updated_at 
+		`SELECT id, level, current_xp, total_xp_earned, quests_completed, updated_at,
+		        flow_status, last_synced_at, last_evaluated, streak_days
 		 FROM player WHERE id = 1`,
 	).Scan(
 		&player.ID,
@@ -31,23 +35,56 @@ func (pr *PlayerRepository) Get() (*domain.Player, error) {
 		&player.TotalXPEarned,
 		&player.QuestsCompleted,
 		&updatedAt,
+		&flowStatus,
+		&lastSyncedAt,
+		&lastEvaluated,
+		&player.StreakDays,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get player: %w", err)
 	}
-	_ = updatedAt
+
+	player.FlowStatus = domain.FlowStatus(flowStatus)
+	if t, ok := parseDBTime(updatedAt); ok {
+		player.UpdatedAt = t
+	}
+	if t, ok := parseDBTime(lastSyncedAt); ok {
+		player.LastSyncedAt = &t
+	}
+	if t, ok := parseDBTime(lastEvaluated); ok {
+		player.LastEvaluated = &t
+	}
+
 	return &player, nil
 }
 
 // Update updates the player
 func (pr *PlayerRepository) Update(player *domain.Player) error {
+	lastSynced := ""
+	if player.LastSyncedAt != nil {
+		lastSynced = player.LastSyncedAt.Format(time.RFC3339)
+	} else {
+		lastSynced = time.Now().UTC().Format(time.RFC3339)
+	}
+	lastEvaluated := ""
+	if player.LastEvaluated != nil {
+		lastEvaluated = player.LastEvaluated.Format(time.RFC3339)
+	} else {
+		lastEvaluated = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	_, err := pr.repo.db.Exec(
 		`UPDATE player SET level = ?, current_xp = ?, total_xp_earned = ?, 
-		 quests_completed = ?, updated_at = datetime('now') WHERE id = 1`,
+		 quests_completed = ?, flow_status = ?, last_synced_at = ?, last_evaluated = ?,
+		 streak_days = ?, updated_at = datetime('now') WHERE id = 1`,
 		player.Level,
 		player.CurrentXP,
 		player.TotalXPEarned,
 		player.QuestsCompleted,
+		string(player.FlowStatus),
+		lastSynced,
+		lastEvaluated,
+		player.StreakDays,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update player: %w", err)
@@ -55,66 +92,12 @@ func (pr *PlayerRepository) Update(player *domain.Player) error {
 	return nil
 }
 
-// CompleteQuest marks a quest as done and awards XP in a transaction
-func (pr *PlayerRepository) CompleteQuest(questID string, xpAmount int) error {
-	tx, err := pr.repo.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+func parseDBTime(value string) (time.Time, bool) {
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t, true
 	}
-	defer tx.Rollback()
-
-	// Check if quest exists and is not already done
-	var status string
-	err = tx.QueryRow("SELECT status FROM quests WHERE id = ?", questID).Scan(&status)
-	if err == sql.ErrNoRows {
-		return fmt.Errorf("quest not found")
+	if t, err := time.Parse("2006-01-02 15:04:05", value); err == nil {
+		return t.UTC(), true
 	}
-	if err != nil {
-		return fmt.Errorf("failed to check quest: %w", err)
-	}
-	if status == "DONE" {
-		return fmt.Errorf("quest already completed")
-	}
-
-	// Mark quest as done
-	_, err = tx.Exec(
-		"UPDATE quests SET status = 'DONE', completed_at = datetime('now') WHERE id = ?",
-		questID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to complete quest: %w", err)
-	}
-
-	// Get player
-	var player domain.Player
-	err = tx.QueryRow(
-		"SELECT level, current_xp, total_xp_earned, quests_completed FROM player WHERE id = 1",
-	).Scan(&player.Level, &player.CurrentXP, &player.TotalXPEarned, &player.QuestsCompleted)
-	if err != nil {
-		return fmt.Errorf("failed to get player: %w", err)
-	}
-
-	// Update player XP
-	player.CurrentXP += xpAmount
-	player.TotalXPEarned += xpAmount
-	player.QuestsCompleted++
-
-	// Check for level up
-	requiredXP := 100 + (player.Level * 50)
-	for player.CurrentXP >= requiredXP {
-		player.CurrentXP -= requiredXP
-		player.Level++
-		requiredXP = 100 + (player.Level * 50)
-	}
-
-	// Update player
-	_, err = tx.Exec(
-		"UPDATE player SET level = ?, current_xp = ?, total_xp_earned = ?, quests_completed = ?, updated_at = datetime('now') WHERE id = 1",
-		player.Level, player.CurrentXP, player.TotalXPEarned, player.QuestsCompleted,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update player: %w", err)
-	}
-
-	return tx.Commit()
+	return time.Time{}, false
 }

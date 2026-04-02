@@ -3,12 +3,8 @@ package cli
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/H-BlackGom/questline/internal/domain"
-	"github.com/H-BlackGom/questline/internal/repository"
 )
 
 func TestListCommand(t *testing.T) {
@@ -18,33 +14,15 @@ func TestListCommand(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", origHome)
 
-	// Setup: Create quests
-	os.RemoveAll(filepath.Join(tmpDir, ".questline"))
-
-	repo, err := repository.New(filepath.Join(tmpDir, ".questline", "data.db"))
-	if err != nil {
-		t.Fatalf("Failed to create repository: %v", err)
+	todoTitle := "Todo Quest"
+	doneTitle := "Done Quest"
+	doneID := seedQuestViaAdd(t, doneTitle)
+	if err := runCommandForTest([]string{"add", todoTitle}); err != nil {
+		t.Fatalf("failed to seed todo quest: %v", err)
 	}
-
-	questRepo := repository.NewQuestRepository(repo)
-
-	// Create TODO quest
-	quest1 := &domain.Quest{
-		ID:     "todo1234",
-		Title:  "Todo Quest",
-		Status: domain.StatusTODO,
+	if err := runCommandForTest([]string{"done", doneID}); err != nil {
+		t.Fatalf("failed to seed done quest: %v", err)
 	}
-	questRepo.Create(quest1)
-
-	// Create DONE quest
-	quest2 := &domain.Quest{
-		ID:     "done5678",
-		Title:  "Done Quest",
-		Status: domain.StatusDONE,
-	}
-	questRepo.Create(quest2)
-
-	repo.Close()
 
 	tests := []struct {
 		name       string

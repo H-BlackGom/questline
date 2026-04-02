@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/H-BlackGom/questline/internal/domain"
-	"github.com/H-BlackGom/questline/internal/repository"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -55,29 +53,20 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		due = &t
 	}
 
-	// Get database path
-	dbPath := GetDBPath()
-
-	// Initialize repository
-	repo, err := repository.New(dbPath)
+	services, err := loadServices()
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 데이터베이스 초기화 실패: %v\n", err)
 		return ErrDatabase
 	}
-	defer repo.Close()
+	defer services.Close()
 
-	// Create quest
-	quest := &domain.Quest{
-		ID:        uuid.New().String()[:8],
-		Title:     title,
-		Status:    domain.StatusTODO,
-		DueDate:   due,
-		CreatedAt: time.Now(),
-	}
-
-	// Save quest
-	questRepo := repository.NewQuestRepository(repo)
-	if err := questRepo.Create(quest); err != nil {
+	quest, err := services.Quest.CreateQuest(
+		title,
+		domain.QuestTypeDaily,
+		nil,
+		due,
+	)
+	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 퀘스트 생성 실패: %v\n", err)
 		return ErrDatabase
 	}

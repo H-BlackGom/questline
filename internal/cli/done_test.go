@@ -3,12 +3,8 @@ package cli
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/H-BlackGom/questline/internal/domain"
-	"github.com/H-BlackGom/questline/internal/repository"
 )
 
 func TestDoneCommand(t *testing.T) {
@@ -18,24 +14,7 @@ func TestDoneCommand(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", origHome)
 
-	// Setup: Create a quest first
-	os.RemoveAll(filepath.Join(tmpDir, ".questline"))
-
-	repo, err := repository.New(filepath.Join(tmpDir, ".questline", "data.db"))
-	if err != nil {
-		t.Fatalf("Failed to create repository: %v", err)
-	}
-
-	questRepo := repository.NewQuestRepository(repo)
-	quest := &domain.Quest{
-		ID:     "test1234",
-		Title:  "Test Quest",
-		Status: domain.StatusTODO,
-	}
-	if err := questRepo.Create(quest); err != nil {
-		t.Fatalf("Failed to create quest: %v", err)
-	}
-	repo.Close()
+	questID := seedQuestViaAdd(t, "Test Quest")
 
 	tests := []struct {
 		name       string
@@ -45,13 +24,13 @@ func TestDoneCommand(t *testing.T) {
 	}{
 		{
 			name:       "Complete existing quest",
-			args:       []string{"done", "test1234"},
+			args:       []string{"done", questID},
 			wantErr:    false,
 			wantOutput: "✓ 퀘스트 완료! +50 XP",
 		},
 		{
 			name:    "Complete already done quest",
-			args:    []string{"done", "test1234"},
+			args:    []string{"done", questID},
 			wantErr: true,
 		},
 		{

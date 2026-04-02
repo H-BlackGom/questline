@@ -1,10 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/H-BlackGom/questline/internal/engine"
-	"github.com/H-BlackGom/questline/internal/repository"
+	"github.com/H-BlackGom/questline/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -27,35 +28,20 @@ func runDone(cmd *cobra.Command, args []string) error {
 		return ErrInvalidInput
 	}
 
-	// Get database path
-	dbPath := GetDBPath()
-
-	// Initialize repository
-	repo, err := repository.New(dbPath)
+	services, err := loadServices()
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 데이터베이스 초기화 실패: %v\n", err)
 		return ErrDatabase
 	}
-	defer repo.Close()
+	defer services.Close()
 
-	// Get player before completing quest
-	playerRepo := repository.NewPlayerRepository(repo)
-	player, err := playerRepo.Get()
+	completion, err := services.Quest.CompleteQuest(questID)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 플레이어 정보 조회 실패: %v\n", err)
-		return ErrDatabase
-	}
-
-	oldLevel := player.Level
-
-	// Complete quest and award XP
-	err = playerRepo.CompleteQuest(questID, 50)
-	if err != nil {
-		if err.Error() == "quest not found" {
+		if errors.Is(err, service.ErrQuestNotFound) {
 			fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 퀘스트를 찾을 수 없습니다: %s\n", questID)
 			return ErrNotFound
 		}
-		if err.Error() == "quest already completed" {
+		if errors.Is(err, service.ErrQuestAlreadyCompleted) {
 			fmt.Fprintln(cmd.ErrOrStderr(), "✗ 오류: 이미 완료된 퀘스트입니다.")
 			return ErrAlreadyDone
 		}
@@ -63,24 +49,17 @@ func runDone(cmd *cobra.Command, args []string) error {
 		return ErrDatabase
 	}
 
-	// Get updated player
-	player, err = playerRepo.Get()
-	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 플레이어 정보 조회 실패: %v\n", err)
-		return ErrDatabase
-	}
-
 	// Output
 	fmt.Fprintln(cmd.OutOrStdout(), "✓ 퀘스트 완료! +50 XP")
 
 	// Check for level up
-	if player.Level > oldLevel {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n🎉 레벨업! Lv.%d → Lv.%d\n", oldLevel, player.Level)
-		fmt.Fprintf(cmd.OutOrStdout(), "   칭호: %s\n", engine.GetTitle(player.Level))
+	if completion.LevelUpOccurred {
+		fmt.Fprintf(cmd.OutOrStdout(), "\n🎉 레벨업! Lv.%d → Lv.%d\n", completion.LevelBefore, completion.LevelAfter)
+		fmt.Fprintf(cmd.OutOrStdout(), "   칭호: %s\n", engine.GetTitle(completion.LevelAfter))
 	}
 
-	requiredXP := engine.GetRequiredXPForNextLevel(player.Level)
-	fmt.Fprintf(cmd.OutOrStdout(), "   다음 레벨까지: %d/%d XP\n", player.CurrentXP, requiredXP)
+	requiredXP := engine.GetRequiredXPForNextLevel(completion.LevelAfter)
+	fmt.Fprintf(cmd.OutOrStdout(), "   다음 레벨까지: %d/%d XP\n", completion.XPAfter, requiredXP)
 
 	return nil
 }

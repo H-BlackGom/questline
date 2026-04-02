@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/H-BlackGom/questline/internal/engine"
-	"github.com/H-BlackGom/questline/internal/repository"
 	"github.com/spf13/cobra"
 )
 
@@ -20,16 +19,14 @@ func init() {
 }
 
 func runMe(cmd *cobra.Command, args []string) error {
-	dbPath := GetDBPath()
-	repo, err := repository.New(dbPath)
+	services, err := loadServices()
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 데이터베이스 초기화 실패: %v\n", err)
 		return ErrDatabase
 	}
-	defer repo.Close()
+	defer services.Close()
 
-	playerRepo := repository.NewPlayerRepository(repo)
-	player, err := playerRepo.Get()
+	player, err := services.Player.GetPlayer()
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 플레이어 정보 조회 실패: %v\n", err)
 		return ErrDatabase
