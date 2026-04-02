@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/H-BlackGom/questline/internal/domain"
 	"github.com/H-BlackGom/questline/internal/engine"
@@ -14,12 +15,39 @@ type playerService struct {
 	db         *sql.DB
 }
 
+type PlayerWithFlow struct {
+	*domain.Player
+	CurrentFlow    domain.FlowStatus
+	FlowMultiplier float64
+	NextEvaluation time.Time
+}
+
 func NewPlayerService(playerRepo *repository.PlayerRepository, repo *repository.Repository) PlayerService {
 	return &playerService{playerRepo: playerRepo, db: repo.DB()}
 }
 
 func (s *playerService) GetPlayer() (*domain.Player, error) {
 	return s.playerRepo.Get()
+}
+
+func (s *playerService) GetPlayerWithFlow() (*PlayerWithFlow, error) {
+	player, err := s.playerRepo.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	flowStatus := player.FlowStatus
+	if !flowStatus.IsValid() {
+		flowStatus = domain.FlowStatusSmooth
+	}
+
+	return &PlayerWithFlow{
+		Player:         player,
+		CurrentFlow:    flowStatus,
+		FlowMultiplier: flowMultiplierForStatus(flowStatus),
+		NextEvaluation: nextFlowEvaluation(time.Now()),
+	}, nil
+
 }
 
 func (s *playerService) AwardXP(baseXP int, _ string) (*AwardResult, error) {
@@ -67,4 +95,24 @@ func (s *playerService) AwardXP(baseXP int, _ string) (*AwardResult, error) {
 		LevelAfter:      leveling.NewLevel,
 		LevelUpOccurred: leveling.LeveledUp,
 	}, nil
+}
+
+func flowMultiplierForStatus(status domain.FlowStatus) float64 {
+	switch status {
+	case domain.FlowStatusBurning:
+		return 1.5
+	case domain.FlowStatusHazy:
+		return 0.5
+	default:
+		return 1.0
+	}
+}
+
+func nextFlowEvaluation(now time.Time) time.Time {
+	locNow := now.Local()
+	next := time.Date(locNow.Year(), locNow.Month(), locNow.Day(), 4, 0, 0, 0, locNow.Location())
+	if !locNow.Before(next) {
+		next = next.Add(24 * time.Hour)
+	}
+	return next
 }

@@ -37,6 +37,14 @@ func (f *fakePlayerService) GetPlayer() (*domain.Player, error) {
 	return &domain.Player{Level: 1, CurrentXP: 0, TotalXPEarned: 0, QuestsCompleted: 0}, nil
 }
 
+func (f *fakePlayerService) GetPlayerWithFlow() (*service.PlayerWithFlow, error) {
+	player, err := f.GetPlayer()
+	if err != nil {
+		return nil, err
+	}
+	return &service.PlayerWithFlow{Player: player, CurrentFlow: domain.FlowStatusSmooth, FlowMultiplier: 1.0, NextEvaluation: time.Now().Add(24 * time.Hour)}, nil
+}
+
 func (f *fakePlayerService) AwardXP(baseXP int, questID string) (*service.AwardResult, error) {
 	return &service.AwardResult{}, nil
 }

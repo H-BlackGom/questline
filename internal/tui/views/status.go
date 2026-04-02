@@ -56,8 +56,10 @@ func RenderFooter(data FooterData, styles theme.Styles) string {
 	hints := []string{
 		fmt.Sprintf("포커스: %s", data.FocusLabel),
 		styles.KeyHint.Render("↑/↓ 이동"),
-		styles.KeyHint.Render("tab 패널"),
-		styles.KeyHint.Render("enter 토글"),
+		styles.KeyHint.Render("enter/→ 진입"),
+		styles.KeyHint.Render("esc/← 복귀"),
+		styles.KeyHint.Render("space 완료"),
+		styles.KeyHint.Render("q 종료"),
 	}
 
 	return styles.Footer.Width(data.Width).Render(strings.Join(hints, "  •  "))

@@ -2,9 +2,9 @@ package tui
 
 import (
 	"sort"
-	"time"
 
 	"github.com/H-BlackGom/questline/internal/domain"
+	"github.com/H-BlackGom/questline/internal/service"
 	"github.com/H-BlackGom/questline/internal/tui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,17 +17,24 @@ const (
 )
 
 type QuestNode struct {
-	Quest      *domain.Quest
-	SubQuests  []*QuestNode
-	IsExpanded bool
-	Progress   float64
+	Quest     *domain.Quest
+	SubQuests []*QuestNode
+	Progress  float64
 }
 
-type PlayerWithFlow struct {
-	*domain.Player
-	CurrentFlow    domain.FlowStatus
-	FlowMultiplier float64
-	NextEvaluation time.Time
+type PlayerWithFlow = service.PlayerWithFlow
+
+type questCommandService interface {
+	GetQuestTree() ([]*domain.Quest, error)
+	CompleteQuest(string) (*service.CompletionResult, error)
+}
+
+type playerCommandService interface {
+	GetPlayerWithFlow() (*service.PlayerWithFlow, error)
+}
+
+type syncCommandService interface {
+	EvaluateLazySync() (*service.SyncResult, error)
 }
 
 type Model struct {
@@ -42,6 +49,10 @@ type Model struct {
 	Height  int
 	Loading bool
 	Error   error
+
+	questService  questCommandService
+	playerService playerCommandService
+	syncService   syncCommandService
 }
 
 func NewModel(quests []*QuestNode, player *PlayerWithFlow) Model {
@@ -60,19 +71,34 @@ func NewModel(quests []*QuestNode, player *PlayerWithFlow) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
-}
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.Width = msg.Width
-		m.Height = msg.Height
-	case error:
-		m.Error = msg
+	if m.questService == nil && m.playerService == nil {
+		return nil
 	}
 
-	return m, nil
+	cmds := make([]tea.Cmd, 0, 2)
+	if cmd := LoadQuestsCmd(m.questService); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+	if cmd := LoadPlayerCmd(m.playerService); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m Model) WithServices(services *service.Services) Model {
+	if services == nil {
+		return m
+	}
+
+	m.questService = services.Quest
+	if playerService, ok := any(services.Player).(playerCommandService); ok {
+		m.playerService = playerService
+	}
+	m.syncService = services.Sync
+	return m
 }
 
 func (m Model) SortedRootQuests() []*QuestNode {
@@ -141,6 +167,9 @@ func questTypeRank(questType domain.QuestType) int {
 }
 
 func clamp(value, minValue, maxValue int) int {
+	if maxValue < minValue {
+		return minValue
+	}
 	if value < minValue {
 		return minValue
 	}
