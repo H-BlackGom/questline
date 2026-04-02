@@ -25,8 +25,12 @@ description: "Task list template for feature implementation"
 - `[CLI]`: CLI 명령어 설계 (II. CLI Command Design)
 - `[DB]`: 데이터 지속성 (III. Data Persistence)
 - `[RPG]`: RPG 게이미피케이션 (IV. RPG Gamification)
-- `[AI]`: AI 페어 프로그래밍 (V. AI Pair Programming)
-- `[QUALITY]`: 코드 품질 및 테스트 (VI. Code Quality)
+- `[QUALITY]`: 코드 품질 및 테스트 (V. Code Quality)
+- `[AI]`: AI 페어 프로그래밍 (VI. AI Pair Programming)
+- `[TUI]`: TUI 아키텍처 (VII. TUI Architecture)
+- `[TYPE]`: 퀘스트 타입 시스템 (VIII. Quest Type System)
+- `[LAZY]`: 지연 평가 (IX. Lazy Evaluation)
+- `[FLOW]`: Flow 시스템 (X. Flow System)
 
 ## Path Conventions
 

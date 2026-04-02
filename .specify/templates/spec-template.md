@@ -114,10 +114,14 @@
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
 
-### Constitution Alignment *(Questline 필수)*
+### Constitution Alignment *(Questline MVP2 필수)*
 
 **원칙 준수 검증**:
-- [ ] **계층형 아키텍처**: cmd/ vs internal/ 분리가 요구사항에 반영되었는가?
-- [ ] **데이터 지속성**: SQLite 스키마 설계가 엔티티 요구사항을 충족하는가?
-- [ ] **RPG 시스템**: XP/레벨업 로직이 모든 관련 User Story에 포함되었는가?
+- [ ] **I. 계층형 아키텍처**: cmd/ vs internal/ 분리, TUI 레이어 추가 필요성 확인
+- [ ] **III. 데이터 지속성**: SQLite 스키마가 퀘스트 타입/Flow/루틴 히스토리를 포함하는가?
+- [ ] **IV. RPG 시스템**: XP/레벨업/Flow 로직이 관련 User Story에 포함되었는가?
+- [ ] **VII. TUI 아키텍처**: Bubble Tea Msg 타입과 상태 흐름이 명시되었는가?
+- [ ] **VIII. 퀘스트 타입**: Daily/Weekly/Epic/Guild/Sub 타입별 동작이 정의되었는가?
+- [ ] **IX. 지연 평가**: 시간 계산 로직이 백그라운드 없이 설계되었는가?
+- [ ] **X. Flow 시스템**: 루틴 달성률 기반 배율 계산이 포함되었는가?
 - [ ] **품질 기준**: 테스트 가능한 Acceptance Criteria가 정의되었는가?

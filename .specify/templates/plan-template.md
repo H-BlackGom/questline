@@ -31,14 +31,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Questline 원칙 검증 체크리스트**:
+**Questline 원칙 검증 체크리스트 (MVP2)**:
 
-- [ ] **I. 계층형 아키텍처**: cmd/에는 CLI 명령어만, 비즈니스 로직은 internal/로 분리
-- [ ] **II. CLI 명령어 설계**: `questline <command>` 형태, 직관적인 명령어 구조
-- [ ] **III. 데이터 지속성**: pure-go SQLite 사용, `~/.questline/data.db` 경로
-- [ ] **IV. RPG 게이미피케이션**: XP/레벨업 시스템, 색상 피드백 고려
-- [ ] **V. AI 페어 프로그래밍**: 복잡한 설계는 Gemini CLI, 반복 작업은 OpenCode
-- [ ] **VI. 코드 품질**: gofmt, 테스트 커버리지 80%+, 명시적 에러 처리
+- [ ] **I. 계층형 아키텍처**: cmd/에는 CLI 명령어만, TUI는 internal/tui/, 비즈니스 로직은 internal/
+- [ ] **II. CLI 명령어 설계**: `ql <command>` 형태, `ql check`는 TUI 대시보드 진입점
+- [ ] **III. 데이터 지속성**: pure-go SQLite 사용, `~/.questline/data.db`, 퀘스트 타입/Flow 스키마 포함
+- [ ] **IV. RPG 게이미피케이션**: XP/레벨업 시스템, Flow(몰입도) 배율 시스템 고려
+- [ ] **V. 코드 품질**: gofmt, 테스트 커버리지 80%+, Bubble Tea Update 함수 순수성 검증
+- [ ] **VI. AI 페어 프로그래밍**: 복잡한 설계/아키텍처는 Gemini CLI, 구현/보일러플레이트는 OpenCode
+- [ ] **VII. TUI 아키텍처**: Bubble Tea Elm 아키텍처 준수 (Model→Update→View)
+- [ ] **VIII. 퀘스트 타입 시스템**: Daily/Weekly/Epic/Guild/Sub 타입별 동작 검증
+- [ ] **IX. 지연 평가**: 백그라운드 데몬 없이 실행 시점 시간 계산, 새벽 4시 기준
+- [ ] **X. Flow 시스템**: 어제 루틴 달성률 기반 오늘 XP 배율 계산 로직
 
 **검증 실패 시**: 해당 원칙을 준수하는 방향으로 설계 재검토
 
