@@ -4,12 +4,16 @@ import "time"
 
 // Player represents user progression
 type Player struct {
-	ID              int       `json:"id"`
-	Level           int       `json:"level"`
-	CurrentXP       int       `json:"current_xp"`
-	TotalXPEarned   int       `json:"total_xp_earned"`
-	QuestsCompleted int       `json:"quests_completed"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              int        `json:"id"`
+	Level           int        `json:"level"`
+	CurrentXP       int        `json:"current_xp"`
+	TotalXPEarned   int        `json:"total_xp_earned"`
+	QuestsCompleted int        `json:"quests_completed"`
+	FlowStatus      FlowStatus `json:"flow_status"`
+	LastSyncedAt    *time.Time `json:"last_synced_at,omitempty"`
+	LastEvaluated   *time.Time `json:"last_evaluated,omitempty"`
+	StreakDays      int        `json:"streak_days"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // GetRequiredXPForNextLevel calculates XP needed for next level
