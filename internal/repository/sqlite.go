@@ -9,6 +9,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const (
+	schemaVersionV1 = 1
+	schemaVersionV2 = 2
+)
+
 // Repository handles database operations
 type Repository struct {
 	db *sql.DB
@@ -40,48 +45,261 @@ func (r *Repository) Close() error {
 	return r.db.Close()
 }
 
-// initSchema creates tables if they don't exist
 func (r *Repository) initSchema() error {
-	// Quests table
-	questsTable := `
-	CREATE TABLE IF NOT EXISTS quests (
-		id TEXT PRIMARY KEY,
-		title TEXT NOT NULL,
-		status TEXT DEFAULT 'TODO' CHECK (status IN ('TODO', 'DONE', 'DROPPED')),
-		due_date TEXT,
-		created_at TEXT NOT NULL,
-		completed_at TEXT
-	);`
-	if _, err := r.db.Exec(questsTable); err != nil {
-		return fmt.Errorf("failed to create quests table: %w", err)
+	version, err := r.getUserVersion()
+	if err != nil {
+		return err
 	}
 
-	// Player table (singleton - always 1 row)
-	playerTable := `
-	CREATE TABLE IF NOT EXISTS player (
-		id INTEGER PRIMARY KEY CHECK (id = 1),
-		level INTEGER DEFAULT 1 NOT NULL,
-		current_xp INTEGER DEFAULT 0 NOT NULL,
-		total_xp_earned INTEGER DEFAULT 0 NOT NULL,
-		quests_completed INTEGER DEFAULT 0 NOT NULL,
-		updated_at TEXT NOT NULL
-	);`
-	if _, err := r.db.Exec(playerTable); err != nil {
-		return fmt.Errorf("failed to create player table: %w", err)
-	}
+	switch version {
+	case schemaVersionV2:
+		return r.ensurePlayerSingleton()
+	case schemaVersionV1:
+		return r.migrateV1ToV2()
+	case 0:
+		hasQuests, err := r.hasTable("quests")
+		if err != nil {
+			return err
+		}
+		hasPlayer, err := r.hasTable("player")
+		if err != nil {
+			return err
+		}
 
-	// Ensure singleton player exists
+		if hasQuests || hasPlayer {
+			return r.migrateV1ToV2()
+		}
+		return r.createFreshV2Schema()
+	default:
+		return fmt.Errorf("unsupported schema version: %d", version)
+	}
+}
+
+func (r *Repository) getUserVersion() (int, error) {
+	var version int
+	if err := r.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+		return 0, fmt.Errorf("failed to read user_version: %w", err)
+	}
+	return version, nil
+}
+
+func (r *Repository) hasTable(name string) (bool, error) {
 	var count int
-	if err := r.db.QueryRow("SELECT COUNT(*) FROM player").Scan(&count); err != nil {
+	if err := r.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name).Scan(&count); err != nil {
+		return false, fmt.Errorf("failed to inspect schema tables: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (r *Repository) createFreshV2Schema() (err error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin schema transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err = createQuestsV2Table(tx, "quests"); err != nil {
+		return err
+	}
+	if err = createPlayerV2Table(tx, "player"); err != nil {
+		return err
+	}
+	if err = ensurePlayerSingletonTx(tx); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersionV2)); err != nil {
+		return fmt.Errorf("failed to set user_version to v2: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit v2 schema bootstrap: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) migrateV1ToV2() (err error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin migration transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err = createQuestsV2Table(tx, "quests_new"); err != nil {
+		return err
+	}
+	if err = createPlayerV2Table(tx, "player_new"); err != nil {
+		return err
+	}
+
+	if _, err = tx.Exec(`
+		INSERT INTO quests_new (
+			id, title, status, due_date, created_at, completed_at,
+			type, parent_id, scheduled_date, deleted_at
+		)
+		SELECT
+			id,
+			title,
+			CASE status
+				WHEN 'TODO' THEN 'pending'
+				WHEN 'DONE' THEN 'completed'
+				WHEN 'DROPPED' THEN 'archived'
+				ELSE 'pending'
+			END,
+			due_date,
+			created_at,
+			completed_at,
+			'daily',
+			NULL,
+			NULL,
+			NULL
+		FROM quests;
+	`); err != nil {
+		return fmt.Errorf("failed to migrate quests data: %w", err)
+	}
+
+	if _, err = tx.Exec(`
+		INSERT INTO player_new (
+			id, level, current_xp, total_xp_earned, quests_completed, updated_at,
+			flow_status, last_synced_at, last_evaluated, streak_days
+		)
+		SELECT
+			id,
+			level,
+			current_xp,
+			total_xp_earned,
+			quests_completed,
+			updated_at,
+			'smooth',
+			updated_at,
+			updated_at,
+			0
+		FROM player;
+	`); err != nil {
+		return fmt.Errorf("failed to migrate player data: %w", err)
+	}
+
+	if _, err = tx.Exec("ALTER TABLE quests RENAME TO quests_v1_backup"); err != nil {
+		return fmt.Errorf("failed to rename legacy quests table: %w", err)
+	}
+	if _, err = tx.Exec("ALTER TABLE quests_new RENAME TO quests"); err != nil {
+		return fmt.Errorf("failed to activate migrated quests table: %w", err)
+	}
+	if _, err = tx.Exec("DROP TABLE quests_v1_backup"); err != nil {
+		return fmt.Errorf("failed to remove legacy quests backup: %w", err)
+	}
+
+	if _, err = tx.Exec("ALTER TABLE player RENAME TO player_v1_backup"); err != nil {
+		return fmt.Errorf("failed to rename legacy player table: %w", err)
+	}
+	if _, err = tx.Exec("ALTER TABLE player_new RENAME TO player"); err != nil {
+		return fmt.Errorf("failed to activate migrated player table: %w", err)
+	}
+	if _, err = tx.Exec("DROP TABLE player_v1_backup"); err != nil {
+		return fmt.Errorf("failed to remove legacy player backup: %w", err)
+	}
+
+	if err = ensurePlayerSingletonTx(tx); err != nil {
+		return err
+	}
+
+	if _, err = tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersionV2)); err != nil {
+		return fmt.Errorf("failed to set user_version to v2: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit v1→v2 migration: %w", err)
+	}
+	return nil
+}
+
+func createQuestsV2Table(tx *sql.Tx, tableName string) error {
+	query := fmt.Sprintf(`
+		CREATE TABLE %s (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'archived', 'pending_completion')),
+			due_date TEXT,
+			created_at TEXT NOT NULL,
+			completed_at TEXT,
+			type TEXT NOT NULL DEFAULT 'daily',
+			parent_id TEXT,
+			scheduled_date TEXT,
+			deleted_at TEXT,
+			FOREIGN KEY (parent_id) REFERENCES quests(id)
+		);
+	`, tableName)
+
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("failed to create %s table: %w", tableName, err)
+	}
+	return nil
+}
+
+func createPlayerV2Table(tx *sql.Tx, tableName string) error {
+	query := fmt.Sprintf(`
+		CREATE TABLE %s (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			level INTEGER DEFAULT 1 NOT NULL,
+			current_xp INTEGER DEFAULT 0 NOT NULL,
+			total_xp_earned INTEGER DEFAULT 0 NOT NULL,
+			quests_completed INTEGER DEFAULT 0 NOT NULL,
+			updated_at TEXT NOT NULL,
+			flow_status TEXT NOT NULL DEFAULT 'smooth' CHECK (flow_status IN ('burning', 'smooth', 'hazy')),
+			last_synced_at TEXT NOT NULL,
+			last_evaluated TEXT NOT NULL,
+			streak_days INTEGER NOT NULL DEFAULT 0
+		);
+	`, tableName)
+
+	if _, err := tx.Exec(query); err != nil {
+		return fmt.Errorf("failed to create %s table: %w", tableName, err)
+	}
+	return nil
+}
+
+func (r *Repository) ensurePlayerSingleton() error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin player singleton transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := ensurePlayerSingletonTx(tx); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit player singleton transaction: %w", err)
+	}
+	return nil
+}
+
+func ensurePlayerSingletonTx(tx *sql.Tx) error {
+	var count int
+	if err := tx.QueryRow("SELECT COUNT(*) FROM player").Scan(&count); err != nil {
 		return fmt.Errorf("failed to check player: %w", err)
 	}
 	if count == 0 {
-		_, err := r.db.Exec("INSERT INTO player (id, level, current_xp, total_xp_earned, quests_completed, updated_at) VALUES (1, 1, 0, 0, 0, datetime('now'))")
-		if err != nil {
+		if _, err := tx.Exec(`
+			INSERT INTO player (
+				id, level, current_xp, total_xp_earned, quests_completed, updated_at,
+				flow_status, last_synced_at, last_evaluated, streak_days
+			) VALUES (
+				1, 1, 0, 0, 0, datetime('now'),
+				'smooth', datetime('now'), datetime('now'), 0
+			)
+		`); err != nil {
 			return fmt.Errorf("failed to create initial player: %w", err)
 		}
 	}
-
 	return nil
 }
 
