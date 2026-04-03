@@ -24,7 +24,7 @@ var (
 
 func init() {
 	addCmd.Flags().StringVarP(&dueDate, "due", "d", "", "Due date (YYYY-MM-DD)")
-	addCmd.Flags().StringVarP(&addQuestType, "type", "t", string(domain.QuestTypeDaily), "Quest type (daily, weekly, epic, guild, sub)")
+	addCmd.Flags().StringVarP(&addQuestType, "type", "t", string(domain.QuestTypeGuild), "Quest type (daily, weekly, epic, guild, sub)")
 	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "Parent quest ID (required for sub)")
 	rootCmd.AddCommand(addCmd)
 }

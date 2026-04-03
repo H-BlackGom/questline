@@ -10,7 +10,7 @@ import (
 
 func resetCLIFlags() {
 	dueDate = ""
-	addQuestType = string(domain.QuestTypeDaily)
+	addQuestType = string(domain.QuestTypeGuild)
 	addParentID = ""
 	listAll = false
 	listDone = false
