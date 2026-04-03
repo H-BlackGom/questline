@@ -80,6 +80,22 @@ func detailPanelForModel(m Model, width, height int) views.DetailPanel {
 		return views.DetailPanel{Focused: m.CurrentFocus == FocusDetail, Width: width, Height: height}
 	}
 
+	var profile *views.DetailProfile
+	if m.Player != nil && m.Player.Player != nil {
+		flow := m.Player.CurrentFlow
+		if !flow.IsValid() {
+			flow = domain.FlowStatusSmooth
+		}
+
+		profile = &views.DetailProfile{
+			Level:      m.Player.Level,
+			Title:      m.Player.Player.GetTitle(),
+			CurrentXP:  m.Player.CurrentXP,
+			RequiredXP: m.Player.Player.GetRequiredXPForNextLevel(),
+			Flow:       flow,
+		}
+	}
+
 	subQuests := make([]views.DetailSubItem, 0, len(selected.SubQuests))
 	for _, subQuest := range selected.SubQuests {
 		if subQuest == nil || subQuest.Quest == nil {
@@ -93,6 +109,7 @@ func detailPanelForModel(m Model, width, height int) views.DetailPanel {
 	}
 
 	return views.DetailPanel{
+		Profile:     profile,
 		Title:       selected.Quest.Title,
 		Type:        selected.Quest.Type,
 		Status:      selected.Quest.Status,
@@ -141,11 +158,4 @@ func resolvedDimension(value, fallback int) int {
 		return fallback
 	}
 	return value
-}
-
-func max(left, right int) int {
-	if left > right {
-		return left
-	}
-	return right
 }

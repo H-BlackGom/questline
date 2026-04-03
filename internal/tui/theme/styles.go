@@ -6,12 +6,13 @@ import (
 )
 
 type LayoutTokens struct {
-	MinWidth           int
-	MinHeight          int
-	MasterWidthPercent int
-	Gap                int
-	PaddingX           int
-	PaddingY           int
+	MinWidth             int
+	MinHeight            int
+	MasterWidthPercent   int
+	Gap                  int
+	PaddingX             int
+	PaddingY             int
+	SummaryProgressWidth int
 }
 
 type ColorTokens struct {
@@ -67,12 +68,13 @@ type Styles struct {
 func DefaultStyles() Styles {
 	tokens := Tokens{
 		Layout: LayoutTokens{
-			MinWidth:           80,
-			MinHeight:          24,
-			MasterWidthPercent: 50,
-			Gap:                2,
-			PaddingX:           1,
-			PaddingY:           0,
+			MinWidth:             80,
+			MinHeight:            24,
+			MasterWidthPercent:   50,
+			Gap:                  2,
+			PaddingX:             1,
+			PaddingY:             0,
+			SummaryProgressWidth: 10,
 		},
 		Colors: ColorTokens{
 			Primary:          "#7D56C4",

@@ -64,9 +64,30 @@ func TestRenderMasterDetail(t *testing.T) {
 
 	view := model.View()
 
-	for _, expected := range []string{"Quest Log", "Quest Detail", "장기 프로젝트", "설계 확정", "리뷰 반영", "BURNING"} {
+	for _, expected := range []string{"Quest Log", "Quest Detail", "장기 프로젝트", "설계 확정", "리뷰 반영", "Lv.7", "Intern", "20%", "BURNING"} {
 		if !strings.Contains(view, expected) {
 			t.Fatalf("expected render to include %q, got %q", expected, view)
+		}
+	}
+}
+
+func TestRenderDetailShowsSingularityProfileStatus(t *testing.T) {
+	now := time.Date(2026, 4, 3, 9, 0, 0, 0, time.UTC)
+
+	model := NewModel([]*QuestNode{
+		newRootQuest("epic-1", "장기 프로젝트", domain.QuestTypeEpic, now),
+	}, &PlayerWithFlow{
+		Player:      &domain.Player{Level: 30, CurrentXP: 960},
+		CurrentFlow: domain.FlowStatusSingularity,
+	})
+	model.Width = 100
+	model.Height = 30
+
+	view := model.View()
+
+	for _, expected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY"} {
+		if !strings.Contains(view, expected) {
+			t.Fatalf("expected singularity summary to include %q, got %q", expected, view)
 		}
 	}
 }

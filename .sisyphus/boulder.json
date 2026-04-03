@@ -15,7 +15,8 @@
     "ses_2b0d830d6ffeotZbrEkidhxtPT",
     "ses_2b0d5d1c3ffeglii7asQoahCKK",
     "ses_2b0d5a359ffe2OKUlMp9I3AxtQ",
-    "ses_2b0d3b710ffeH2pJkZmr5Td4A6"
+    "ses_2b0d3b710ffeH2pJkZmr5Td4A6",
+    "ses_2ad7166c7ffeorwG3VmtDhH0sO"
   ],
   "plan_name": "questline-mvp2-execution",
   "agent": "atlas",
@@ -24,10 +25,10 @@
       "task_key": "todo:1",
       "task_label": "1",
       "task_title": "SQLite schema versioning과 MVP1→MVP2 마이그레이션 하니스 구축",
-      "session_id": "ses_2b0d3b710ffeH2pJkZmr5Td4A6",
+      "session_id": "ses_2ad7166c7ffeorwG3VmtDhH0sO",
       "agent": "Sisyphus-Junior",
-      "category": "writing",
-      "updated_at": "2026-04-02T17:09:56.825Z"
+      "category": "visual-engineering",
+      "updated_at": "2026-04-03T09:02:40.070Z"
     }
   }
 }
