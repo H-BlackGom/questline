@@ -25,21 +25,19 @@ func renderPlayerSummary(summary PlayerSummary, panelWidth int, styles theme.Sty
 
 	left := styles.BodyText.Bold(true).Render(fmt.Sprintf("🧙 Lv.%d %s", summary.Level, summary.Title))
 	bar := fmt.Sprintf("[%s]", renderProgressBar(summary.CurrentXP, summary.RequiredXP, styles.Tokens.Layout.SummaryProgressWidth, styles))
-	percent := styles.MutedText.Render(fmt.Sprintf("%d%%", progressPercent(summary.CurrentXP, summary.RequiredXP)))
+	percent := fmt.Sprintf("%d%%", progressPercent(summary.CurrentXP, summary.RequiredXP))
 	flow := flowStyle.Render(flowStatusLabel(summary.Flow))
 	availableWidth := panelContentWidth(panelWidth, styles)
 
-	firstLine, firstFits := layoutSummaryLine([]string{left, bar}, availableWidth)
-	if !firstFits {
-		firstLine = strings.Join([]string{left, bar}, "\n")
+	// 한 줄에 모든 내용 표시
+	singleLine, fits := layoutSummaryLine([]string{left, bar, percent, flow}, availableWidth)
+	if fits {
+		return singleLine
 	}
 
-	secondLine, secondFits := layoutSummaryLine([]string{percent, flow}, availableWidth)
-	if !secondFits {
-		secondLine = strings.Join([]string{percent, flow}, "\n")
-	}
-
-	return strings.Join([]string{firstLine, secondLine}, "\n")
+	// 너무 길면 간결하게: 레벨 + 진행률 + Flow
+	compact := fmt.Sprintf("🧙 Lv.%d  %s  %s", summary.Level, percent, flow)
+	return styles.BodyText.Render(compact)
 }
 
 func renderProgressBar(currentXP, requiredXP, width int, styles theme.Styles) string {
