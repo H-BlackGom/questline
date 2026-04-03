@@ -39,3 +39,14 @@ go.work.sum
 .sisyphus/drafts/
 .sisyphus/evidence/
 .sisyphus/notepads/
+
+# macOS metadata files
+.DS_Store
+**/.DS_Store
+
+# Application runtime data
+.questline/
+
+# Compiled binary (built on demand)
+/ql
+.ql
