@@ -43,7 +43,7 @@ func RenderMaster(panel MasterPanel, styles theme.Styles) string {
 				badgeStyle = styles.MutedText
 			}
 
-			line := fmt.Sprintf("%s %s %s", selectionMarker(index == panel.Selected), badgeStyle.Render(strings.ToUpper(string(item.Type))), item.Title)
+			line := fmt.Sprintf("%s %s %s", selectionMarker(index == panel.Selected), badgeStyle.Render("["+strings.ToUpper(string(item.Type))+"]"), item.Title)
 			if item.Progress > 0 {
 				line = fmt.Sprintf("%s · %d%%", line, int(item.Progress*100))
 			}
