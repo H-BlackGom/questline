@@ -145,7 +145,7 @@ func TestCompleteParentPendingAwardsXP(t *testing.T) {
 	services := newQuestServiceTestBootstrap(t)
 	defer services.Close()
 
-	daily, err := services.Quest.CreateQuest("daily for burning flow", domain.QuestTypeDaily, nil, nil)
+	daily, err := services.Quest.CreateQuest("daily for singularity flow", domain.QuestTypeDaily, nil, nil)
 	if err != nil {
 		t.Fatalf("create daily quest failed: %v", err)
 	}
@@ -180,16 +180,16 @@ func TestCompleteParentPendingAwardsXP(t *testing.T) {
 	if completion.XPBefore != 50 {
 		t.Fatalf("expected xp before parent completion to be 50, got %d", completion.XPBefore)
 	}
-	if completion.XPAfter != 125 {
-		t.Fatalf("expected burning flow multiplier XP result (125), got %d", completion.XPAfter)
+	if completion.XPAfter != 0 {
+		t.Fatalf("expected level-up rollover XP result (0), got %d", completion.XPAfter)
 	}
 
 	player, err := services.Player.GetPlayer()
 	if err != nil {
 		t.Fatalf("get player after parent completion failed: %v", err)
 	}
-	if player.TotalXPEarned != 125 {
-		t.Fatalf("expected total xp earned to be 125, got %d", player.TotalXPEarned)
+	if player.TotalXPEarned != 150 {
+		t.Fatalf("expected total xp earned to be 150, got %d", player.TotalXPEarned)
 	}
 	if player.QuestsCompleted != 2 {
 		t.Fatalf("expected quests completed to be 2 (daily + parent), got %d", player.QuestsCompleted)

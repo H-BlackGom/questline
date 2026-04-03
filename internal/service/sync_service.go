@@ -53,8 +53,18 @@ func (s *syncService) EvaluateLazySync() (*SyncResult, error) {
 		return nil, fmt.Errorf("failed to evaluate lazy sync plan: %w", err)
 	}
 
+	logicalNow := engine.LogicalDate(now)
+	logicalLastSynced := engine.LogicalDate(lastSynced.In(now.Location()))
+	daysSinceLastSync := int(logicalNow.Sub(logicalLastSynced).Hours() / 24)
+
 	if plan.EvaluationDate != nil {
 		if err := s.evaluateDateIfNeeded(tx, *plan.EvaluationDate); err != nil {
+			return nil, err
+		}
+	}
+
+	if daysSinceLastSync > 1 {
+		if err := s.applyLongInactivitySinglePenalty(tx, logicalLastSynced); err != nil {
 			return nil, err
 		}
 	}
@@ -78,6 +88,51 @@ func (s *syncService) EvaluateLazySync() (*SyncResult, error) {
 	}
 
 	return &SyncResult{EvaluatedAt: now}, nil
+}
+
+func (s *syncService) applyLongInactivitySinglePenalty(tx *sql.Tx, date time.Time) error {
+	dateKey := date.Format("2006-01-02")
+
+	var total int
+	var completed int
+	err := tx.QueryRow(
+		`SELECT
+			COUNT(*),
+			COALESCE(SUM(CASE WHEN completed THEN 1 ELSE 0 END), 0)
+		 FROM quest_history
+		 WHERE date = ?`,
+		dateKey,
+	).Scan(&total, &completed)
+	if err != nil {
+		return fmt.Errorf("failed to evaluate inactivity penalty from quest history: %w", err)
+	}
+
+	baseGrade := engine.EvaluateFlowStatus(total, completed)
+	penaltyGrade := downgradeFlowGrade(baseGrade)
+
+	if _, err := tx.Exec(
+		`UPDATE player
+		 SET flow_status = ?, updated_at = datetime('now')
+		 WHERE id = 1`,
+		string(penaltyGrade),
+	); err != nil {
+		return fmt.Errorf("failed to persist long inactivity penalty: %w", err)
+	}
+
+	return nil
+}
+
+func downgradeFlowGrade(grade domain.FlowStatus) domain.FlowStatus {
+	switch grade {
+	case domain.FlowStatusSingularity:
+		return domain.FlowStatusBurning
+	case domain.FlowStatusBurning:
+		return domain.FlowStatusSmooth
+	case domain.FlowStatusSmooth:
+		return domain.FlowStatusHazy
+	default:
+		return domain.FlowStatusHazy
+	}
 }
 
 func (s *syncService) evaluateDateIfNeeded(tx *sql.Tx, date time.Time) error {
@@ -207,7 +262,9 @@ func (s *syncService) CalculateFlowGrade(date time.Time) (*FlowGrade, error) {
 			COUNT(*),
 			COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0)
 		 FROM quests
-		 WHERE type = ? AND (scheduled_date = ? OR date(created_at) = ?)`,
+		 WHERE deleted_at IS NULL
+		   AND type = ?
+		   AND (scheduled_date = ? OR date(created_at) = ?)`,
 		string(domain.StatusCompleted),
 		string(domain.QuestTypeDaily),
 		dateKey,
@@ -225,6 +282,8 @@ func (s *syncService) CalculateFlowGrade(date time.Time) (*FlowGrade, error) {
 	grade := engine.EvaluateFlowStatus(total, completed)
 	multiplier := 1.0
 	switch grade {
+	case domain.FlowStatusSingularity:
+		multiplier = 2.0
 	case domain.FlowStatusBurning:
 		multiplier = 1.5
 	case domain.FlowStatusHazy:

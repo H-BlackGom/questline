@@ -32,9 +32,10 @@ type ColorTokens struct {
 	GuildColor  string
 	SubColor    string
 
-	BurningColor string
-	SmoothColor  string
-	HazyColor    string
+	BurningColor     string
+	SingularityColor string
+	SmoothColor      string
+	HazyColor        string
 }
 
 type Tokens struct {
@@ -74,24 +75,25 @@ func DefaultStyles() Styles {
 			PaddingY:           0,
 		},
 		Colors: ColorTokens{
-			Primary:      "#7D56C4",
-			Secondary:    "#5A3D8F",
-			Success:      "#04B575",
-			Warning:      "#F4D03F",
-			Danger:       "#E74C3C",
-			Info:         "#3498DB",
-			Muted:        "#95A5A6",
-			Surface:      "#1F2430",
-			SurfaceHi:    "#2B3245",
-			Text:         "#F5F7FA",
-			DailyColor:   "#3498DB",
-			WeeklyColor:  "#9B59B6",
-			EpicColor:    "#E67E22",
-			GuildColor:   "#27AE60",
-			SubColor:     "#7F8C8D",
-			BurningColor: "#E74C3C",
-			SmoothColor:  "#3498DB",
-			HazyColor:    "#F4D03F",
+			Primary:          "#7D56C4",
+			Secondary:        "#5A3D8F",
+			Success:          "#04B575",
+			Warning:          "#F4D03F",
+			Danger:           "#E74C3C",
+			Info:             "#3498DB",
+			Muted:            "#95A5A6",
+			Surface:          "#1F2430",
+			SurfaceHi:        "#2B3245",
+			Text:             "#F5F7FA",
+			DailyColor:       "#3498DB",
+			WeeklyColor:      "#9B59B6",
+			EpicColor:        "#E67E22",
+			GuildColor:       "#27AE60",
+			SubColor:         "#7F8C8D",
+			BurningColor:     "#E74C3C",
+			SingularityColor: "#C678DD",
+			SmoothColor:      "#3498DB",
+			HazyColor:        "#F4D03F",
 		},
 	}
 
@@ -110,9 +112,10 @@ func DefaultStyles() Styles {
 	}
 
 	flowState := map[domain.FlowStatus]lipgloss.Style{
-		domain.FlowStatusBurning: lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.BurningColor)).Bold(true),
-		domain.FlowStatusSmooth:  lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.SmoothColor)).Bold(true),
-		domain.FlowStatusHazy:    lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.HazyColor)).Bold(true),
+		domain.FlowStatusSingularity: lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.SingularityColor)).Bold(true),
+		domain.FlowStatusBurning:     lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.BurningColor)).Bold(true),
+		domain.FlowStatusSmooth:      lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.SmoothColor)).Bold(true),
+		domain.FlowStatusHazy:        lipgloss.NewStyle().Foreground(lipgloss.Color(tokens.Colors.HazyColor)).Bold(true),
 	}
 
 	panelFocused := panelBase.BorderForeground(lipgloss.Color(tokens.Colors.Primary))

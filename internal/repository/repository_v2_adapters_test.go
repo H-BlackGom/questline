@@ -139,7 +139,7 @@ func TestDailyEvaluationPersistence(t *testing.T) {
 	if err := historyRepo.SaveDailyEvaluation(date, 2, 1, 0.5, domain.FlowStatusSmooth); err != nil {
 		t.Fatalf("SaveDailyEvaluation initial failed: %v", err)
 	}
-	if err := historyRepo.SaveDailyEvaluation(date, 2, 2, 1.0, domain.FlowStatusBurning); err != nil {
+	if err := historyRepo.SaveDailyEvaluation(date, 2, 2, 1.0, domain.FlowStatusSingularity); err != nil {
 		t.Fatalf("SaveDailyEvaluation upsert failed: %v", err)
 	}
 
@@ -150,7 +150,7 @@ func TestDailyEvaluationPersistence(t *testing.T) {
 	if len(evaluations) != 1 {
 		t.Fatalf("expected 1 evaluation row, got %d", len(evaluations))
 	}
-	if evaluations[0].FlowGrade != domain.FlowStatusBurning || evaluations[0].CompletionRate != 1.0 {
+	if evaluations[0].FlowGrade != domain.FlowStatusSingularity || evaluations[0].CompletionRate != 1.0 {
 		t.Fatalf("unexpected evaluation row: %+v", evaluations[0])
 	}
 }

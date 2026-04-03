@@ -39,17 +39,21 @@ type QuestService interface {
 }
 
 type QuestFilter struct {
+	Types    []domain.QuestType
 	Statuses []domain.QuestStatus
 	ParentID *string
 }
 
 type CompletionResult struct {
-	Quest           *domain.Quest
-	XPBefore        int
-	XPAfter         int
-	LevelBefore     int
-	LevelAfter      int
-	LevelUpOccurred bool
+	Quest                       *domain.Quest
+	XPEarned                    int
+	FlowMultiplier              float64
+	XPBefore                    int
+	XPAfter                     int
+	LevelBefore                 int
+	LevelAfter                  int
+	LevelUpOccurred             bool
+	ParentTransitionedToPending bool
 }
 
 type SyncService interface {

@@ -41,6 +41,37 @@ func TestFlowGrade(t *testing.T) {
 	}
 }
 
+func TestFlowGrade_ExcludesSoftDeletedDailyQuests(t *testing.T) {
+	repo := newSyncTestRepository(t)
+	defer repo.Close()
+
+	date := time.Date(2026, 4, 3, 12, 0, 0, 0, time.UTC)
+	dateKey := date.Format("2006-01-02")
+
+	if _, err := repo.DB().Exec(
+		`INSERT INTO quests (id, title, status, created_at, type, scheduled_date, deleted_at)
+		 VALUES
+		 ('daily_active', 'daily_active', ?, ?, ?, ?, NULL),
+		 ('daily_deleted', 'daily_deleted', ?, ?, ?, ?, datetime('now'))`,
+		string(domain.StatusCompleted), date.Format(time.RFC3339), string(domain.QuestTypeDaily), dateKey,
+		string(domain.StatusPending), date.Format(time.RFC3339), string(domain.QuestTypeDaily), dateKey,
+	); err != nil {
+		t.Fatalf("failed to seed daily quests with deleted row: %v", err)
+	}
+
+	svc := newSyncServiceWithClock(repo, engine.NewFixedClock(date))
+	grade, err := svc.CalculateFlowGrade(date)
+	if err != nil {
+		t.Fatalf("CalculateFlowGrade failed: %v", err)
+	}
+	if grade.Grade != domain.FlowStatusSingularity {
+		t.Fatalf("expected singularity grade with only active daily counted, got %s", grade.Grade)
+	}
+	if grade.Multiplier != 2.0 {
+		t.Fatalf("expected singularity multiplier 2.0, got %v", grade.Multiplier)
+	}
+}
+
 func TestEvaluateLazySync(t *testing.T) {
 	loc := time.FixedZone("KST", 9*60*60)
 	now := time.Date(2026, 4, 5, 5, 0, 0, 0, loc)
@@ -80,6 +111,67 @@ func TestEvaluateLazySync(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected one daily evaluation for stale date, got %d", count)
+	}
+}
+
+func TestEvaluateLazySync_LongInactivitySinglePenalty(t *testing.T) {
+	now := time.Date(2026, 4, 8, 8, 0, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 4, 3, 10, 0, 0, 0, time.UTC)
+	dateKey := "2026-04-03"
+
+	repo := newSyncTestRepository(t)
+	defer repo.Close()
+
+	if _, err := repo.DB().Exec(
+		"UPDATE player SET flow_status = ?, last_synced_at = ?, last_evaluated = ? WHERE id = 1",
+		string(domain.FlowStatusBurning),
+		lastSynced.Format(time.RFC3339),
+		lastSynced.Format(time.RFC3339),
+	); err != nil {
+		t.Fatalf("failed to set player fixture: %v", err)
+	}
+
+	if _, err := repo.DB().Exec(
+		`INSERT INTO quests (id, title, status, created_at, type, scheduled_date)
+		 VALUES
+		 ('hist_done', 'hist_done', ?, ?, ?, ?),
+		 ('hist_pending', 'hist_pending', ?, ?, ?, ?)`,
+		string(domain.StatusCompleted), lastSynced.Format(time.RFC3339), string(domain.QuestTypeDaily), dateKey,
+		string(domain.StatusPending), lastSynced.Format(time.RFC3339), string(domain.QuestTypeDaily), dateKey,
+	); err != nil {
+		t.Fatalf("failed to seed quests for history: %v", err)
+	}
+
+	if _, err := repo.DB().Exec(
+		`INSERT INTO quest_history (quest_id, date, status, completed, xp_earned)
+		 VALUES
+		 ('hist_done', ?, ?, 1, 50),
+		 ('hist_pending', ?, ?, 0, 0)`,
+		dateKey,
+		string(domain.StatusCompleted),
+		dateKey,
+		string(domain.StatusPending),
+	); err != nil {
+		t.Fatalf("failed to seed quest history: %v", err)
+	}
+
+	svc := newSyncServiceWithClock(repo, engine.NewFixedClock(now))
+	if _, err := svc.EvaluateLazySync(); err != nil {
+		t.Fatalf("first EvaluateLazySync failed: %v", err)
+	}
+
+	flowStatus := mustString(t, repo, "SELECT flow_status FROM player WHERE id = 1")
+	if flowStatus != string(domain.FlowStatusHazy) {
+		t.Fatalf("expected single inactivity penalty to downgrade to hazy, got %s", flowStatus)
+	}
+
+	if _, err := svc.EvaluateLazySync(); err != nil {
+		t.Fatalf("second EvaluateLazySync failed: %v", err)
+	}
+
+	flowStatusAfterSecondSync := mustString(t, repo, "SELECT flow_status FROM player WHERE id = 1")
+	if flowStatusAfterSecondSync != flowStatus {
+		t.Fatalf("expected single penalty behavior to be idempotent, first=%s second=%s", flowStatus, flowStatusAfterSecondSync)
 	}
 }
 

@@ -62,7 +62,7 @@ func TestFlowGrade(t *testing.T) {
 		total     int
 		want      domain.FlowStatus
 	}{
-		{name: "100 percent burning", completed: 10, total: 10, want: domain.FlowStatusBurning},
+		{name: "100 percent singularity", completed: 10, total: 10, want: domain.FlowStatusSingularity},
 		{name: "80 percent burning", completed: 4, total: 5, want: domain.FlowStatusBurning},
 		{name: "79 percent smooth", completed: 79, total: 100, want: domain.FlowStatusSmooth},
 		{name: "50 percent smooth", completed: 1, total: 2, want: domain.FlowStatusSmooth},

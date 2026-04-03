@@ -1,12 +1,33 @@
 {
-  "active_plan": "/Users/hyoungrolee/Documents/1_Project/01_dev/questline/.sisyphus/plans/agent-guidelines-hierarchy-execution.md",
-  "started_at": "2026-03-23T07:28:14.498Z",
+  "active_plan": "/Users/hyoungrolee/Documents/1_Project/01_dev/questline/.sisyphus/plans/questline-mvp2-execution.md",
+  "started_at": "2026-04-02T15:23:23.804Z",
   "session_ids": [
-    "ses_2e6bd1499ffeSSfKKAX5Rcq6hn",
-    "ses_2e6644611ffeBgktjVDHrnkBrA",
-    "ses_2e65a00baffepV36dz3EHb2HdF",
-    "ses_2e658fb3bffe3VaXa921bnj2JQ"
+    "ses_2b174f11dffeolkWDCf2EXkU4h",
+    "ses_2b128a7eaffedD6Yz5BAseRRz8",
+    "ses_2b11f4450ffetTrR71ZEk3msbu",
+    "ses_2b118a012ffevEZU6rPXyKI2bH",
+    "ses_2b1087c91ffeHCuFH4KTkEzdOl",
+    "ses_2b0ffec56ffeC5JMPPJs3q1Ivm",
+    "ses_2b0ffec5affeFkFNJQTuvzuyEF",
+    "ses_2b0f7feffffeYeXZi55K5XCqyy",
+    "ses_2b0eefe98ffelHupPvu7f4uQlc",
+    "ses_2b0e5cd2fffexxUJ44xuGHy4L7",
+    "ses_2b0d830d6ffeotZbrEkidhxtPT",
+    "ses_2b0d5d1c3ffeglii7asQoahCKK",
+    "ses_2b0d5a359ffe2OKUlMp9I3AxtQ",
+    "ses_2b0d3b710ffeH2pJkZmr5Td4A6"
   ],
-  "plan_name": "agent-guidelines-hierarchy-execution",
-  "agent": "atlas"
+  "plan_name": "questline-mvp2-execution",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "SQLite schema versioning과 MVP1→MVP2 마이그레이션 하니스 구축",
+      "session_id": "ses_2b0d3b710ffeH2pJkZmr5Td4A6",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-02T17:09:56.825Z"
+    }
+  }
 }

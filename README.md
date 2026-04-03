@@ -4,10 +4,31 @@ A gamified task management CLI tool with RPG-style progression.
 
 ## Features
 
+### Core Features
 - **Quest Management**: Create and complete tasks with due dates
 - **XP System**: Earn 50 XP for each completed quest
 - **Level Up**: Progress through levels with increasing difficulty
 - **Titles**: Unlock titles from Intern to Guru as you level up
+
+### MVP2 Features
+- **Quest Types**: Classify quests as `daily`, `weekly`, `epic`, `guild`, or `sub`
+  ```bash
+  ql add "Morning routine" -t daily
+  ql add "Big project" -t epic
+  ```
+- **Quest Hierarchy**: Create sub-quests under epic/guild quests
+  ```bash
+  ql add "Sub task" -t sub -p <parent_id>
+  ```
+- **Flow System**: Track daily completion streaks with XP multipliers
+  ```bash
+  ql me --flow  # Show Flow status and multiplier
+  ```
+- **TUI Dashboard**: Interactive terminal UI for quest management
+  ```bash
+  ql check  # Launch Bubble Tea dashboard
+  ```
+- **Lazy Evaluation**: Automatic daily quest archival at 04:00
 
 ## Installation
 
@@ -92,6 +113,14 @@ ql add "Submit project" -d 2026-03-25
 
 # Using long flag
 ql add "Review code" --due=2026-03-26
+
+# Add typed quests (MVP2)
+ql add "Morning stretch" -t daily
+ql add "Big project" -t epic
+ql add "Weekly review" -t weekly
+
+# Add sub-quest under a parent (MVP2)
+ql add "Sub task" -t sub -p <parent_id>
 ```
 
 ### Listing Quests
@@ -125,6 +154,9 @@ ql done a1b2c3d4
 # Show your current level, XP, and progress
 ql me
 
+# Show Flow status with XP multiplier (MVP2)
+ql me --flow
+
 # Example output:
 # ╔══════════════════════════════════╗
 # ║        퀘스트라인 캐릭터         ║
@@ -140,14 +172,29 @@ ql me
 # ╚══════════════════════════════════╝
 ```
 
+### TUI Dashboard (MVP2)
+
+```bash
+# Launch interactive Bubble Tea dashboard
+ql check
+
+# Keyboard controls:
+#   ↑/k, ↓/j    - Navigate
+#   →/Enter     - View sub-quests
+#   ←/Esc       - Back
+#   Space       - Complete/undo quest
+#   q/Ctrl+C    - Quit
+```
+
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `ql add "<title>" [-d YYYY-MM-DD]` | Add a new quest |
+| `ql add "<title>" [-d YYYY-MM-DD] [-t <type>] [-p <parent>]` | Add a new quest |
 | `ql done <id>` | Complete a quest and earn XP |
-| `ql ls [--done\|--all]` | List quests |
-| `ql me` | Show player profile |
+| `ql ls [--done\|--all] [--type <type>]` | List quests |
+| `ql me [--flow]` | Show player profile |
+| `ql check` | Launch TUI dashboard |
 
 ## Error Codes
 

@@ -43,6 +43,7 @@ func TestMeCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := new(bytes.Buffer)
+			resetCLIFlags()
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
 			rootCmd.SetArgs(tt.args)
@@ -56,5 +57,29 @@ func TestMeCommand(t *testing.T) {
 				t.Errorf("Output %q does not contain %q", buf.String(), tt.wantOutput)
 			}
 		})
+	}
+}
+
+func TestMeWithFlow(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	buf := new(bytes.Buffer)
+	resetCLIFlags()
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"me", "--flow"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("me --flow failed: %v", err)
+	}
+
+	output := buf.String()
+	for _, label := range []string{"Flow 상태:", "Flow 배율:", "연속 일수:", "다음 평가 시점:"} {
+		if !strings.Contains(output, label) {
+			t.Fatalf("expected flow label %q in output: %s", label, output)
+		}
 	}
 }

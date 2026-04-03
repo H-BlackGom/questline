@@ -84,6 +84,10 @@ func TestCommandsUseSharedBootstrap(t *testing.T) {
 		dueDate = ""
 		listAll = false
 		listDone = false
+		listType = ""
+		addQuestType = "daily"
+		addParentID = ""
+		meFlow = false
 
 		buf := new(bytes.Buffer)
 		rootCmd.SetOut(buf)

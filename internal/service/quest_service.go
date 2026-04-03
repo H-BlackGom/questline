@@ -121,16 +121,26 @@ func (s *questService) CompleteQuest(questID string) (*CompletionResult, error) 
 	}
 
 	questXP := 0
+	flowMultiplier := 1.0
+	parentTransitionedToPending := false
 	var level int
 	var currentXP int
 	var totalXPEarned int
 	var questsCompleted int
 	leveling := engine.LevelingResult{NewLevel: 0, NewXP: 0, LeveledUp: false}
 
+	err = tx.QueryRow("SELECT level, current_xp, total_xp_earned, quests_completed FROM player WHERE id = 1").Scan(&level, &currentXP, &totalXPEarned, &questsCompleted)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load player progression: %w", err)
+	}
+	leveling = engine.LevelingResult{NewLevel: level, NewXP: currentXP, LeveledUp: false}
+
 	if parentID.Valid {
-		if err := s.transitionParentAfterSubCompletionTx(tx, parentID.String); err != nil {
+		transitioned, err := s.transitionParentAfterSubCompletionTx(tx, parentID.String)
+		if err != nil {
 			return nil, err
 		}
+		parentTransitionedToPending = transitioned
 	} else {
 		allChildrenCompleted, hasChildren, err := s.hasOnlyCompletedChildrenTx(tx, questID)
 		if err != nil {
@@ -140,16 +150,12 @@ func (s *questService) CompleteQuest(questID string) (*CompletionResult, error) 
 			return nil, fmt.Errorf("cannot complete parent quest until all sub quests are completed")
 		}
 
-		err = tx.QueryRow("SELECT level, current_xp, total_xp_earned, quests_completed FROM player WHERE id = 1").Scan(&level, &currentXP, &totalXPEarned, &questsCompleted)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load player progression: %w", err)
-		}
-
 		if hasChildren {
 			multiplier, err := s.flowMultiplierTx(tx, now)
 			if err != nil {
 				return nil, err
 			}
+			flowMultiplier = multiplier
 			questXP = int(math.Round(50 * multiplier))
 		} else {
 			questXP = 50
@@ -182,22 +188,25 @@ func (s *questService) CompleteQuest(questID string) (*CompletionResult, error) 
 	}
 
 	return &CompletionResult{
-		Quest:           quest,
-		XPBefore:        currentXP,
-		XPAfter:         leveling.NewXP,
-		LevelBefore:     level,
-		LevelAfter:      leveling.NewLevel,
-		LevelUpOccurred: questXP > 0 && leveling.LeveledUp,
+		Quest:                       quest,
+		XPEarned:                    questXP,
+		FlowMultiplier:              flowMultiplier,
+		XPBefore:                    currentXP,
+		XPAfter:                     leveling.NewXP,
+		LevelBefore:                 level,
+		LevelAfter:                  leveling.NewLevel,
+		LevelUpOccurred:             questXP > 0 && leveling.LeveledUp,
+		ParentTransitionedToPending: parentTransitionedToPending,
 	}, nil
 }
 
-func (s *questService) transitionParentAfterSubCompletionTx(tx *sql.Tx, parentID string) error {
+func (s *questService) transitionParentAfterSubCompletionTx(tx *sql.Tx, parentID string) (bool, error) {
 	allCompleted, hasChildren, err := s.hasOnlyCompletedChildrenTx(tx, parentID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !hasChildren {
-		return nil
+		return false, nil
 	}
 
 	nextStatus := domain.StatusInProgress
@@ -206,9 +215,9 @@ func (s *questService) transitionParentAfterSubCompletionTx(tx *sql.Tx, parentID
 	}
 
 	if _, err := tx.Exec("UPDATE quests SET status = ?, completed_at = NULL WHERE id = ? AND deleted_at IS NULL", string(nextStatus), parentID); err != nil {
-		return fmt.Errorf("failed to update parent quest status: %w", err)
+		return false, fmt.Errorf("failed to update parent quest status: %w", err)
 	}
-	return nil
+	return nextStatus == domain.StatusPendingCompletion, nil
 }
 
 func (s *questService) hasOnlyCompletedChildrenTx(tx *sql.Tx, parentID string) (allCompleted bool, hasChildren bool, err error) {
@@ -253,6 +262,8 @@ func (s *questService) flowMultiplierTx(tx *sql.Tx, date time.Time) (float64, er
 	}
 
 	switch engine.EvaluateFlowStatus(total, completed) {
+	case domain.FlowStatusSingularity:
+		return 2.0, nil
 	case domain.FlowStatusBurning:
 		return 1.5, nil
 	case domain.FlowStatusHazy:
@@ -267,15 +278,62 @@ func (s *questService) GetQuest(questID string) (*domain.Quest, error) {
 }
 
 func (s *questService) ListQuests(filter QuestFilter) ([]*domain.Quest, error) {
+	if len(filter.Types) == 1 && len(filter.Statuses) == 0 && filter.ParentID == nil {
+		return s.questRepo.GetByType(filter.Types[0])
+	}
 	if filter.ParentID != nil {
-		return s.questRepo.ListByParent(*filter.ParentID)
+		quests, err := s.questRepo.ListByParent(*filter.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		return filterQuests(quests, filter), nil
 	}
 	if len(filter.Statuses) == 1 {
-		return s.questRepo.ListByStatus(filter.Statuses[0])
+		quests, err := s.questRepo.ListByStatus(filter.Statuses[0])
+		if err != nil {
+			return nil, err
+		}
+		return filterQuests(quests, filter), nil
 	}
-	return s.questRepo.ListAll()
+	quests, err := s.questRepo.ListAll()
+	if err != nil {
+		return nil, err
+	}
+	return filterQuests(quests, filter), nil
 }
 
 func (s *questService) GetQuestTree() ([]*domain.Quest, error) {
 	return s.questRepo.ListAll()
+}
+
+func filterQuests(quests []*domain.Quest, filter QuestFilter) []*domain.Quest {
+	if len(filter.Types) == 0 && len(filter.Statuses) == 0 {
+		return quests
+	}
+
+	typeSet := map[domain.QuestType]struct{}{}
+	for _, questType := range filter.Types {
+		typeSet[questType] = struct{}{}
+	}
+	statusSet := map[domain.QuestStatus]struct{}{}
+	for _, status := range filter.Statuses {
+		statusSet[status] = struct{}{}
+	}
+
+	filtered := make([]*domain.Quest, 0, len(quests))
+	for _, quest := range quests {
+		if len(typeSet) > 0 {
+			if _, ok := typeSet[quest.Type]; !ok {
+				continue
+			}
+		}
+		if len(statusSet) > 0 {
+			if _, ok := statusSet[quest.Status]; !ok {
+				continue
+			}
+		}
+		filtered = append(filtered, quest)
+	}
+
+	return filtered
 }

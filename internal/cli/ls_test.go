@@ -58,8 +58,7 @@ func TestListCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset flags before each test
-			listAll = false
-			listDone = false
+			resetCLIFlags()
 
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
@@ -75,5 +74,33 @@ func TestListCommand(t *testing.T) {
 				t.Errorf("Output %q does not contain %q", buf.String(), tt.wantOutput)
 			}
 		})
+	}
+}
+
+func TestLsWithTypeFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	seedQuestViaArgs(t, []string{"add", "Daily A", "-t", "daily"})
+	seedQuestViaArgs(t, []string{"add", "Epic A", "-t", "epic"})
+
+	buf := new(bytes.Buffer)
+	resetCLIFlags()
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"ls", "--type", "epic"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("ls --type epic failed: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Epic A") {
+		t.Fatalf("expected epic quest in output, got: %s", output)
+	}
+	if strings.Contains(output, "Daily A") {
+		t.Fatalf("expected daily quest to be filtered out, got: %s", output)
 	}
 }

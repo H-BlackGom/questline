@@ -99,6 +99,8 @@ func (s *playerService) AwardXP(baseXP int, _ string) (*AwardResult, error) {
 
 func flowMultiplierForStatus(status domain.FlowStatus) float64 {
 	switch status {
+	case domain.FlowStatusSingularity:
+		return 2.0
 	case domain.FlowStatusBurning:
 		return 1.5
 	case domain.FlowStatusHazy:

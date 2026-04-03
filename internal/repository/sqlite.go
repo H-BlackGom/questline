@@ -272,7 +272,7 @@ func createPlayerV2Table(tx *sql.Tx, tableName string) error {
 			total_xp_earned INTEGER DEFAULT 0 NOT NULL,
 			quests_completed INTEGER DEFAULT 0 NOT NULL,
 			updated_at TEXT NOT NULL,
-			flow_status TEXT NOT NULL DEFAULT 'smooth' CHECK (flow_status IN ('burning', 'smooth', 'hazy')),
+			flow_status TEXT NOT NULL DEFAULT 'smooth' CHECK (flow_status IN ('singularity', 'burning', 'smooth', 'hazy')),
 			last_synced_at TEXT NOT NULL,
 			last_evaluated TEXT NOT NULL,
 			streak_days INTEGER NOT NULL DEFAULT 0
@@ -316,7 +316,7 @@ func createDailyEvaluationV2Table(tx *sql.Tx, tableName string) error {
 			total_routines INTEGER NOT NULL,
 			completed_routines INTEGER NOT NULL,
 			completion_rate REAL NOT NULL,
-			flow_grade TEXT NOT NULL CHECK (flow_grade IN ('burning', 'smooth', 'hazy')),
+			flow_grade TEXT NOT NULL CHECK (flow_grade IN ('singularity', 'burning', 'smooth', 'hazy')),
 			evaluated_at TEXT DEFAULT (datetime('now'))
 		);
 		CREATE INDEX IF NOT EXISTS idx_evaluation_date ON %s(date);

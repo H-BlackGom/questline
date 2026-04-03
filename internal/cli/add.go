@@ -10,16 +10,22 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   `add "<title>" [-d YYYY-MM-DD]`,
+	Use:   `add "<title>" [-t daily|weekly|epic|guild|sub] [-p parent-id] [-d YYYY-MM-DD]`,
 	Short: "Add a new quest",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runAdd,
 }
 
-var dueDate string
+var (
+	dueDate      string
+	addQuestType string
+	addParentID  string
+)
 
 func init() {
 	addCmd.Flags().StringVarP(&dueDate, "due", "d", "", "Due date (YYYY-MM-DD)")
+	addCmd.Flags().StringVarP(&addQuestType, "type", "t", string(domain.QuestTypeDaily), "Quest type (daily, weekly, epic, guild, sub)")
+	addCmd.Flags().StringVarP(&addParentID, "parent", "p", "", "Parent quest ID (required for sub)")
 	rootCmd.AddCommand(addCmd)
 }
 
@@ -33,6 +39,25 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	}
 	if len(title) > 200 {
 		fmt.Fprintln(cmd.ErrOrStderr(), "✗ 오류: 제목은 200자 이하여야 합니다.")
+		return ErrInvalidInput
+	}
+
+	questType, err := parseQuestType(addQuestType)
+	if err != nil {
+		fmt.Fprintln(cmd.ErrOrStderr(), "✗ 오류: 타입은 daily, weekly, epic, guild, sub 중 하나여야 합니다.")
+		return ErrInvalidInput
+	}
+
+	parentIDText := strings.TrimSpace(addParentID)
+	var parentID *string
+	if questType == domain.QuestTypeSub {
+		if parentIDText == "" {
+			fmt.Fprintln(cmd.ErrOrStderr(), "✗ 오류: sub 타입은 부모 퀘스트 ID가 필요합니다.")
+			return ErrInvalidInput
+		}
+		parentID = &parentIDText
+	} else if parentIDText != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), "✗ 오류: sub 타입이 아닌 퀘스트에는 부모를 지정할 수 없습니다.")
 		return ErrInvalidInput
 	}
 
@@ -62,8 +87,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 
 	quest, err := services.Quest.CreateQuest(
 		title,
-		domain.QuestTypeDaily,
-		nil,
+		questType,
+		parentID,
 		due,
 	)
 	if err != nil {
@@ -73,6 +98,14 @@ func runAdd(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(cmd.OutOrStdout(), "✓ 퀘스트 #%s 생성됨: \"%s\"\n", quest.ID, quest.Title)
 	return nil
+}
+
+func parseQuestType(raw string) (domain.QuestType, error) {
+	questType := domain.QuestType(strings.ToLower(strings.TrimSpace(raw)))
+	if !questType.IsValid() {
+		return "", fmt.Errorf("invalid quest type")
+	}
+	return questType, nil
 }
 
 var (

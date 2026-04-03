@@ -51,6 +51,7 @@ func TestAddCommand(t *testing.T) {
 			os.RemoveAll(filepath.Join(tmpDir, ".questline"))
 
 			buf := new(bytes.Buffer)
+			resetCLIFlags()
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
 			rootCmd.SetArgs(tt.args)
@@ -62,6 +63,56 @@ func TestAddCommand(t *testing.T) {
 
 			if tt.wantOutput != "" && !strings.Contains(buf.String(), tt.wantOutput) {
 				t.Errorf("Output %q does not contain %q", buf.String(), tt.wantOutput)
+			}
+		})
+	}
+}
+
+func TestAddWithTypeAndParent(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	epicID := seedQuestViaArgs(t, []string{"add", "Epic Parent", "-t", "epic"})
+
+	tests := []struct {
+		name       string
+		args       []string
+		wantErr    bool
+		wantOutput string
+	}{
+		{
+			name:       "Add sub quest with parent",
+			args:       []string{"add", "Sub Quest", "-t", "sub", "-p", epicID},
+			wantOutput: "✓ 퀘스트 #",
+		},
+		{
+			name:    "Sub quest without parent",
+			args:    []string{"add", "Sub Quest", "-t", "sub"},
+			wantErr: true,
+		},
+		{
+			name:    "Daily quest forbids parent",
+			args:    []string{"add", "Daily Quest", "-t", "daily", "-p", epicID},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			resetCLIFlags()
+			rootCmd.SetOut(buf)
+			rootCmd.SetErr(buf)
+			rootCmd.SetArgs(tt.args)
+
+			err := rootCmd.Execute()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Execute() error = %v, wantErr %v, output=%q", err, tt.wantErr, buf.String())
+			}
+			if tt.wantOutput != "" && !strings.Contains(buf.String(), tt.wantOutput) {
+				t.Fatalf("Output %q does not contain %q", buf.String(), tt.wantOutput)
 			}
 		})
 	}

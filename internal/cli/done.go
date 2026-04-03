@@ -39,7 +39,7 @@ func runDone(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		if errors.Is(err, service.ErrQuestNotFound) {
 			fmt.Fprintf(cmd.ErrOrStderr(), "✗ 오류: 퀘스트를 찾을 수 없습니다: %s\n", questID)
-			return ErrNotFound
+			return ErrQuestNotFound
 		}
 		if errors.Is(err, service.ErrQuestAlreadyCompleted) {
 			fmt.Fprintln(cmd.ErrOrStderr(), "✗ 오류: 이미 완료된 퀘스트입니다.")
@@ -50,7 +50,13 @@ func runDone(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output
-	fmt.Fprintln(cmd.OutOrStdout(), "✓ 퀘스트 완료! +50 XP")
+	fmt.Fprintf(cmd.OutOrStdout(), "✓ 퀘스트 완료! +%d XP\n", completion.XPEarned)
+	if completion.XPEarned > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "   Flow 배율: %.1fx\n", completion.FlowMultiplier)
+	}
+	if completion.ParentTransitionedToPending {
+		fmt.Fprintln(cmd.OutOrStdout(), "   부모 퀘스트가 PENDING 상태로 전이되었습니다.")
+	}
 
 	// Check for level up
 	if completion.LevelUpOccurred {
@@ -65,8 +71,7 @@ func runDone(cmd *cobra.Command, args []string) error {
 }
 
 var (
-	// ErrNotFound is returned when quest is not found
-	ErrNotFound = fmt.Errorf("quest not found")
-	// ErrAlreadyDone is returned when quest is already completed
-	ErrAlreadyDone = fmt.Errorf("quest already completed")
+	ErrQuestNotFound = fmt.Errorf("quest not found")
+	ErrNotFound      = ErrQuestNotFound
+	ErrAlreadyDone   = fmt.Errorf("quest already completed")
 )

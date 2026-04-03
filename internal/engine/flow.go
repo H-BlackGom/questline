@@ -4,6 +4,8 @@ import "github.com/H-BlackGom/questline/internal/domain"
 
 func CalculateFlowGrade(completionRate float64) domain.FlowStatus {
 	switch {
+	case completionRate == 1.0:
+		return domain.FlowStatusSingularity
 	case completionRate >= 0.8:
 		return domain.FlowStatusBurning
 	case completionRate >= 0.5:

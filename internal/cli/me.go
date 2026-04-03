@@ -3,10 +3,14 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/H-BlackGom/questline/internal/domain"
 	"github.com/H-BlackGom/questline/internal/engine"
 	"github.com/spf13/cobra"
 )
+
+var meFlow bool
 
 var meCmd = &cobra.Command{
 	Use:   "me",
@@ -15,6 +19,7 @@ var meCmd = &cobra.Command{
 }
 
 func init() {
+	meCmd.Flags().BoolVar(&meFlow, "flow", false, "Show detailed flow status")
 	rootCmd.AddCommand(meCmd)
 }
 
@@ -45,6 +50,19 @@ func runMe(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("칭호: %s", engine.GetTitle(player.Level)), boxWidth))
 	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("누적 XP: %d", player.TotalXPEarned), boxWidth))
 	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft("", boxWidth))
+	if meFlow {
+		flowStatus := player.FlowStatus
+		if !flowStatus.IsValid() {
+			flowStatus = domain.FlowStatusSmooth
+		}
+		multiplier := flowMultiplierByStatus(flowStatus)
+		nextEval := nextFlowEvaluation(time.Now())
+		fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("Flow 상태: %s", flowStatusLabel(flowStatus)), boxWidth))
+		fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("Flow 배율: %.1fx", multiplier), boxWidth))
+		fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("연속 일수: %d일", player.StreakDays), boxWidth))
+		fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("다음 평가 시점: %s", nextEval.Format("2006-01-02 15:04")), boxWidth))
+		fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft("", boxWidth))
+	}
 	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("다음 레벨까지: %d/%d XP", player.CurrentXP, requiredXP), boxWidth))
 	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft(fmt.Sprintf("[%s] %d%%", progress, progressPercent), boxWidth))
 	fmt.Fprintln(cmd.OutOrStdout(), formatBoxLineLeft("", boxWidth))
@@ -84,4 +102,39 @@ func getProgressBar(current, required, width int) string {
 	}
 	empty := width - filled
 	return strings.Repeat("█", filled) + strings.Repeat("░", empty)
+}
+
+func flowMultiplierByStatus(status domain.FlowStatus) float64 {
+	switch status {
+	case domain.FlowStatusSingularity:
+		return 2.0
+	case domain.FlowStatusBurning:
+		return 1.5
+	case domain.FlowStatusHazy:
+		return 0.5
+	default:
+		return 1.0
+	}
+}
+
+func flowStatusLabel(status domain.FlowStatus) string {
+	switch status {
+	case domain.FlowStatusSingularity:
+		return "✨ SINGULARITY"
+	case domain.FlowStatusBurning:
+		return "🔥 BURNING"
+	case domain.FlowStatusHazy:
+		return "🌫️ HAZY"
+	default:
+		return "🌊 SMOOTH"
+	}
+}
+
+func nextFlowEvaluation(now time.Time) time.Time {
+	locNow := now.Local()
+	next := time.Date(locNow.Year(), locNow.Month(), locNow.Day(), 4, 0, 0, 0, locNow.Location())
+	if !locNow.Before(next) {
+		next = next.Add(24 * time.Hour)
+	}
+	return next
 }

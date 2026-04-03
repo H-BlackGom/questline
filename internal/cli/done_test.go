@@ -48,6 +48,7 @@ func TestDoneCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := new(bytes.Buffer)
+			resetCLIFlags()
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
 			rootCmd.SetArgs(tt.args)
@@ -61,5 +62,36 @@ func TestDoneCommand(t *testing.T) {
 				t.Errorf("Output %q does not contain %q", buf.String(), tt.wantOutput)
 			}
 		})
+	}
+}
+
+func TestDoneShowsFlowMultiplier(t *testing.T) {
+	tmpDir := t.TempDir()
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	parentID := seedQuestViaArgs(t, []string{"add", "Epic Parent", "-t", "epic"})
+	subA := seedQuestViaArgs(t, []string{"add", "Sub A", "-t", "sub", "-p", parentID})
+	subB := seedQuestViaArgs(t, []string{"add", "Sub B", "-t", "sub", "-p", parentID})
+	if err := runCommandForTest([]string{"done", subA}); err != nil {
+		t.Fatalf("failed to complete sub A: %v", err)
+	}
+	if err := runCommandForTest([]string{"done", subB}); err != nil {
+		t.Fatalf("failed to complete sub B: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+	resetCLIFlags()
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"done", parentID})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("failed to complete parent quest: %v, output=%s", err, buf.String())
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Flow 배율:") {
+		t.Fatalf("expected flow multiplier output, got: %s", output)
 	}
 }
