@@ -16,6 +16,7 @@ type MasterItem struct {
 }
 
 type MasterPanel struct {
+	Summary  *PlayerSummary
 	Items    []MasterItem
 	Selected int
 	Focused  bool
@@ -24,7 +25,14 @@ type MasterPanel struct {
 }
 
 func RenderMaster(panel MasterPanel, styles theme.Styles) string {
-	content := []string{styles.PanelTitle.Render("Quest Log")}
+	content := make([]string, 0, len(panel.Items)+4)
+	if panel.Summary != nil {
+		content = append(content,
+			renderPlayerSummary(*panel.Summary, panel.Width, styles),
+			styles.MutedText.Render(strings.Repeat("─", panelContentWidth(panel.Width, styles))),
+		)
+	}
+	content = append(content, styles.PanelTitle.Render("Quest Log"))
 
 	if len(panel.Items) == 0 {
 		content = append(content, styles.MutedText.Render("표시할 루트 퀘스트가 없습니다."))

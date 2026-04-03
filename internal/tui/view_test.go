@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/H-BlackGom/questline/internal/domain"
+	"github.com/H-BlackGom/questline/internal/tui/theme"
+	"github.com/H-BlackGom/questline/internal/tui/views"
 )
 
 func TestInitialModel(t *testing.T) {
@@ -88,6 +90,30 @@ func TestRenderDetailShowsSingularityProfileStatus(t *testing.T) {
 	for _, expected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY"} {
 		if !strings.Contains(view, expected) {
 			t.Fatalf("expected singularity summary to include %q, got %q", expected, view)
+		}
+	}
+}
+
+func TestMasterPanelShowsPlayerSummaryAboveQuestList(t *testing.T) {
+	now := time.Date(2026, 4, 3, 9, 0, 0, 0, time.UTC)
+	model := NewModel([]*QuestNode{
+		newRootQuest("epic-1", "장기 프로젝트", domain.QuestTypeEpic, now),
+	}, &PlayerWithFlow{
+		Player:      &domain.Player{Level: 30, CurrentXP: 960},
+		CurrentFlow: domain.FlowStatusSingularity,
+	})
+
+	master := views.RenderMaster(masterPanelForModel(model, 48, 12), theme.DefaultStyles())
+	for _, expected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY", "Quest Log", "장기 프로젝트"} {
+		if !strings.Contains(master, expected) {
+			t.Fatalf("expected master panel to include %q, got %q", expected, master)
+		}
+	}
+
+	detail := views.RenderDetail(detailPanelForModel(model, 48, 12), theme.DefaultStyles())
+	for _, unexpected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY"} {
+		if strings.Contains(detail, unexpected) {
+			t.Fatalf("expected detail panel to omit %q after summary move, got %q", unexpected, detail)
 		}
 	}
 }

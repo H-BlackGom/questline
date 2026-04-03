@@ -22,15 +22,11 @@ func (m Model) View() string {
 	header := views.RenderHeader(headerDataForModel(m, width), styles)
 	footer := views.RenderFooter(views.FooterData{FocusLabel: focusLabel(m.CurrentFocus), Width: width}, styles)
 	bodyHeight := height - lipgloss.Height(header) - lipgloss.Height(footer)
-	if bodyHeight < 1 {
-		bodyHeight = 1
-	}
+	bodyHeight = max(bodyHeight, 1)
 
 	masterWidth := width * styles.Tokens.Layout.MasterWidthPercent / 100
 	detailWidth := width - masterWidth - styles.Tokens.Layout.Gap
-	if detailWidth < 1 {
-		detailWidth = 1
-	}
+	detailWidth = max(detailWidth, 1)
 
 	body := lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -65,7 +61,24 @@ func masterPanelForModel(m Model, width, height int) views.MasterPanel {
 		})
 	}
 
+	var summary *views.PlayerSummary
+	if m.Player != nil && m.Player.Player != nil {
+		flow := m.Player.CurrentFlow
+		if !flow.IsValid() {
+			flow = domain.FlowStatusSmooth
+		}
+
+		summary = &views.PlayerSummary{
+			Level:      m.Player.Level,
+			Title:      m.Player.Player.GetTitle(),
+			CurrentXP:  m.Player.CurrentXP,
+			RequiredXP: m.Player.Player.GetRequiredXPForNextLevel(),
+			Flow:       flow,
+		}
+	}
+
 	return views.MasterPanel{
+		Summary:  summary,
 		Items:    items,
 		Selected: clamp(m.MasterCursor, 0, max(len(items)-1, 0)),
 		Focused:  m.CurrentFocus == FocusMaster,
@@ -78,22 +91,6 @@ func detailPanelForModel(m Model, width, height int) views.DetailPanel {
 	selected := m.SelectedQuest()
 	if selected == nil || selected.Quest == nil {
 		return views.DetailPanel{Focused: m.CurrentFocus == FocusDetail, Width: width, Height: height}
-	}
-
-	var profile *views.DetailProfile
-	if m.Player != nil && m.Player.Player != nil {
-		flow := m.Player.CurrentFlow
-		if !flow.IsValid() {
-			flow = domain.FlowStatusSmooth
-		}
-
-		profile = &views.DetailProfile{
-			Level:      m.Player.Level,
-			Title:      m.Player.Player.GetTitle(),
-			CurrentXP:  m.Player.CurrentXP,
-			RequiredXP: m.Player.Player.GetRequiredXPForNextLevel(),
-			Flow:       flow,
-		}
 	}
 
 	subQuests := make([]views.DetailSubItem, 0, len(selected.SubQuests))
@@ -109,7 +106,6 @@ func detailPanelForModel(m Model, width, height int) views.DetailPanel {
 	}
 
 	return views.DetailPanel{
-		Profile:     profile,
 		Title:       selected.Quest.Title,
 		Type:        selected.Quest.Type,
 		Status:      selected.Quest.Status,
