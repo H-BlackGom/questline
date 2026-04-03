@@ -29,7 +29,7 @@ type DetailPanel struct {
 }
 
 func RenderDetail(panel DetailPanel, styles theme.Styles) string {
-	content := []string{styles.PanelTitle.Render("Quest Detail")}
+	content := []string{styles.PanelTitle.Render("Quest Detail"), ""}
 
 	if strings.TrimSpace(panel.Title) == "" {
 		content = append(content, styles.MutedText.Render("선택된 퀘스트가 없습니다."))
