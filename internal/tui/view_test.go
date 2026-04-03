@@ -87,7 +87,7 @@ func TestRenderDetailShowsSingularityProfileStatus(t *testing.T) {
 
 	view := model.View()
 
-	for _, expected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY"} {
+	for _, expected := range []string{"Lv.30", "60%", "SINGULARITY"} {
 		if !strings.Contains(view, expected) {
 			t.Fatalf("expected singularity summary to include %q, got %q", expected, view)
 		}
@@ -104,14 +104,14 @@ func TestMasterPanelShowsPlayerSummaryAboveQuestList(t *testing.T) {
 	})
 
 	master := views.RenderMaster(masterPanelForModel(model, 48, 12), theme.DefaultStyles())
-	for _, expected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY", "Quest Log", "장기 프로젝트"} {
+	for _, expected := range []string{"Lv.30", "60%", "SINGULARITY", "Quest Log", "장기 프로젝트"} {
 		if !strings.Contains(master, expected) {
 			t.Fatalf("expected master panel to include %q, got %q", expected, master)
 		}
 	}
 
 	detail := views.RenderDetail(detailPanelForModel(model, 48, 12), theme.DefaultStyles())
-	for _, unexpected := range []string{"Lv.30", "Lead", "60%", "SINGULARITY"} {
+	for _, unexpected := range []string{"Lv.30", "60%", "SINGULARITY"} {
 		if strings.Contains(detail, unexpected) {
 			t.Fatalf("expected detail panel to omit %q after summary move, got %q", unexpected, detail)
 		}

@@ -19,6 +19,10 @@ func (f *fakeQuestService) CompleteQuest(questID string) (*service.CompletionRes
 	return &service.CompletionResult{XPAfter: 50, LevelAfter: 1, LevelBefore: 1}, nil
 }
 
+func (f *fakeQuestService) UpdateQuestStatus(questID string, newStatus domain.QuestStatus) error {
+	return nil
+}
+
 func (f *fakeQuestService) GetQuest(questID string) (*domain.Quest, error) {
 	return &domain.Quest{ID: questID, Status: domain.StatusPending}, nil
 }

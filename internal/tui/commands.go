@@ -23,9 +23,10 @@ type SyncCompleteMsg struct {
 	Err    error
 }
 
-type QuestToggledMsg struct {
-	QuestID string
-	Err     error
+type QuestStatusCycledMsg struct {
+	QuestID   string
+	NewStatus domain.QuestStatus
+	Err       error
 }
 
 func LoadQuestsCmd(service interface {
@@ -70,16 +71,39 @@ func PerformSyncCmd(service interface {
 	}
 }
 
-func ToggleQuestCmd(service interface {
-	CompleteQuest(string) (*service.CompletionResult, error)
+func CycleQuestStatusCmd(questService interface {
+	GetQuest(string) (*domain.Quest, error)
+	UpdateQuestStatus(string, domain.QuestStatus) error
 }, questID string) tea.Cmd {
-	if service == nil || strings.TrimSpace(questID) == "" {
+	if questService == nil || strings.TrimSpace(questID) == "" {
 		return nil
 	}
 
 	return func() tea.Msg {
-		_, err := service.CompleteQuest(questID)
-		return QuestToggledMsg{QuestID: questID, Err: err}
+		quest, err := questService.GetQuest(questID)
+		if err != nil {
+			return QuestStatusCycledMsg{QuestID: questID, Err: err}
+		}
+		if quest == nil {
+			return QuestStatusCycledMsg{QuestID: questID, Err: service.ErrQuestNotFound}
+		}
+
+		nextStatus := nextQuestStatus(quest.Status)
+		err = questService.UpdateQuestStatus(questID, nextStatus)
+		return QuestStatusCycledMsg{QuestID: questID, NewStatus: nextStatus, Err: err}
+	}
+}
+
+func nextQuestStatus(current domain.QuestStatus) domain.QuestStatus {
+	switch current {
+	case domain.StatusPending:
+		return domain.StatusInProgress
+	case domain.StatusInProgress:
+		return domain.StatusCompleted
+	case domain.StatusCompleted:
+		return domain.StatusPending
+	default:
+		return domain.StatusPending
 	}
 }
 

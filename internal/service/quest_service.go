@@ -200,6 +200,31 @@ func (s *questService) CompleteQuest(questID string) (*CompletionResult, error) 
 	}, nil
 }
 
+func (s *questService) UpdateQuestStatus(questID string, newStatus domain.QuestStatus) error {
+	if strings.TrimSpace(questID) == "" {
+		return fmt.Errorf("quest id is required")
+	}
+	if !newStatus.IsValid() {
+		return fmt.Errorf("invalid quest status: %s", newStatus)
+	}
+
+	var completedAt *time.Time
+	if newStatus == domain.StatusCompleted {
+		now := time.Now().UTC()
+		completedAt = &now
+	}
+
+	err := s.questRepo.UpdateStatus(questID, newStatus, completedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrQuestNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *questService) transitionParentAfterSubCompletionTx(tx *sql.Tx, parentID string) (bool, error) {
 	allCompleted, hasChildren, err := s.hasOnlyCompletedChildrenTx(tx, parentID)
 	if err != nil {

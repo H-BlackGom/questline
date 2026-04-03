@@ -33,6 +33,7 @@ func (s *Services) Close() error {
 type QuestService interface {
 	CreateQuest(title string, questType domain.QuestType, parentID *string, dueDate *time.Time) (*domain.Quest, error)
 	CompleteQuest(questID string) (*CompletionResult, error)
+	UpdateQuestStatus(questID string, newStatus domain.QuestStatus) error
 	GetQuest(questID string) (*domain.Quest, error)
 	ListQuests(filter QuestFilter) ([]*domain.Quest, error)
 	GetQuestTree() ([]*domain.Quest, error)

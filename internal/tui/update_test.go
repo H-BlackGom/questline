@@ -5,26 +5,41 @@ import (
 	"time"
 
 	"github.com/H-BlackGom/questline/internal/domain"
-	"github.com/H-BlackGom/questline/internal/service"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type fakeTUIQuestService struct {
-	quests       []*domain.Quest
-	completedIDs []string
-	err          error
+	quests     map[string]*domain.Quest
+	updatedIDs []string
+	updatedTo  []domain.QuestStatus
+	err        error
 }
 
 func (f *fakeTUIQuestService) GetQuestTree() ([]*domain.Quest, error) {
-	return f.quests, nil
+	quests := make([]*domain.Quest, 0, len(f.quests))
+	for _, quest := range f.quests {
+		quests = append(quests, quest)
+	}
+	return quests, nil
 }
 
-func (f *fakeTUIQuestService) CompleteQuest(questID string) (*service.CompletionResult, error) {
-	f.completedIDs = append(f.completedIDs, questID)
-	if f.err != nil {
-		return nil, f.err
+func (f *fakeTUIQuestService) GetQuest(questID string) (*domain.Quest, error) {
+	if quest, ok := f.quests[questID]; ok {
+		return quest, nil
 	}
-	return &service.CompletionResult{Quest: &domain.Quest{ID: questID}}, nil
+	return nil, nil
+}
+
+func (f *fakeTUIQuestService) UpdateQuestStatus(questID string, status domain.QuestStatus) error {
+	f.updatedIDs = append(f.updatedIDs, questID)
+	f.updatedTo = append(f.updatedTo, status)
+	if f.err != nil {
+		return f.err
+	}
+	if quest, ok := f.quests[questID]; ok {
+		quest.Status = status
+	}
+	return nil
 }
 
 func TestUpdateNavigation(t *testing.T) {
@@ -40,7 +55,10 @@ func TestUpdateNavigation(t *testing.T) {
 	)
 
 	model := NewModel([]*QuestNode{daily, epic}, nil)
-	questService := &fakeTUIQuestService{}
+	questService := &fakeTUIQuestService{quests: map[string]*domain.Quest{
+		"daily-1": {ID: "daily-1", Status: domain.StatusPending},
+		"sub-2":   {ID: "sub-2", Status: domain.StatusPending},
+	}}
 	model.questService = questService
 
 	model, _ = updateModelForTest(t, model, tea.KeyMsg{Type: tea.KeyDown})
@@ -66,15 +84,21 @@ func TestUpdateNavigation(t *testing.T) {
 		t.Fatal("expected space on sub quest to return toggle command")
 	}
 	msg := cmd()
-	toggled, ok := msg.(QuestToggledMsg)
+	cycled, ok := msg.(QuestStatusCycledMsg)
 	if !ok {
-		t.Fatalf("expected QuestToggledMsg, got %T", msg)
+		t.Fatalf("expected QuestStatusCycledMsg, got %T", msg)
 	}
-	if toggled.QuestID != "sub-2" {
-		t.Fatalf("expected sub quest toggle for sub-2, got %q", toggled.QuestID)
+	if cycled.QuestID != "sub-2" {
+		t.Fatalf("expected sub quest cycle for sub-2, got %q", cycled.QuestID)
 	}
-	if len(questService.completedIDs) != 1 || questService.completedIDs[0] != "sub-2" {
-		t.Fatalf("expected sub quest completion path to use service CompleteQuest, got %v", questService.completedIDs)
+	if cycled.NewStatus != domain.StatusInProgress {
+		t.Fatalf("expected sub quest to cycle into in_progress, got %s", cycled.NewStatus)
+	}
+	if len(questService.updatedIDs) != 1 || questService.updatedIDs[0] != "sub-2" {
+		t.Fatalf("expected sub quest cycle path to update sub-2, got %v", questService.updatedIDs)
+	}
+	if len(questService.updatedTo) != 1 || questService.updatedTo[0] != domain.StatusInProgress {
+		t.Fatalf("expected sub quest to update status in_progress, got %v", questService.updatedTo)
 	}
 	if !model.Loading {
 		t.Fatal("expected model to enter loading state when toggling a sub quest")
@@ -95,35 +119,43 @@ func TestUpdateNavigation(t *testing.T) {
 		t.Fatal("expected space on root quest to return toggle command")
 	}
 	msg = cmd()
-	toggled, ok = msg.(QuestToggledMsg)
+	cycled, ok = msg.(QuestStatusCycledMsg)
 	if !ok {
-		t.Fatalf("expected QuestToggledMsg, got %T", msg)
+		t.Fatalf("expected QuestStatusCycledMsg, got %T", msg)
 	}
-	if toggled.QuestID != "daily-1" {
-		t.Fatalf("expected root quest toggle for daily-1, got %q", toggled.QuestID)
+	if cycled.QuestID != "daily-1" {
+		t.Fatalf("expected root quest cycle for daily-1, got %q", cycled.QuestID)
 	}
-	if len(questService.completedIDs) != 2 || questService.completedIDs[1] != "daily-1" {
-		t.Fatalf("expected root quest completion path to use service CompleteQuest, got %v", questService.completedIDs)
+	if cycled.NewStatus != domain.StatusInProgress {
+		t.Fatalf("expected root quest to cycle into in_progress, got %s", cycled.NewStatus)
+	}
+	if len(questService.updatedIDs) != 2 || questService.updatedIDs[1] != "daily-1" {
+		t.Fatalf("expected root quest cycle path to update daily-1, got %v", questService.updatedIDs)
 	}
 }
 
-func TestToggleQuestCmd(t *testing.T) {
-	questService := &fakeTUIQuestService{}
-	cmd := ToggleQuestCmd(questService, "quest-1")
+func TestCycleQuestStatusCmd(t *testing.T) {
+	questService := &fakeTUIQuestService{quests: map[string]*domain.Quest{
+		"quest-1": {ID: "quest-1", Status: domain.StatusInProgress},
+	}}
+	cmd := CycleQuestStatusCmd(questService, "quest-1")
 	if cmd == nil {
-		t.Fatal("expected toggle quest command")
+		t.Fatal("expected cycle quest status command")
 	}
 
 	msg := cmd()
-	toggled, ok := msg.(QuestToggledMsg)
+	cycled, ok := msg.(QuestStatusCycledMsg)
 	if !ok {
-		t.Fatalf("expected QuestToggledMsg, got %T", msg)
+		t.Fatalf("expected QuestStatusCycledMsg, got %T", msg)
 	}
-	if toggled.QuestID != "quest-1" {
-		t.Fatalf("expected quest-1 to be toggled, got %q", toggled.QuestID)
+	if cycled.QuestID != "quest-1" {
+		t.Fatalf("expected quest-1 to be cycled, got %q", cycled.QuestID)
 	}
-	if len(questService.completedIDs) != 1 || questService.completedIDs[0] != "quest-1" {
-		t.Fatalf("expected CompleteQuest to be called once, got %v", questService.completedIDs)
+	if cycled.NewStatus != domain.StatusCompleted {
+		t.Fatalf("expected status to cycle from in_progress to completed, got %s", cycled.NewStatus)
+	}
+	if len(questService.updatedIDs) != 1 || questService.updatedIDs[0] != "quest-1" {
+		t.Fatalf("expected UpdateQuestStatus to be called once, got %v", questService.updatedIDs)
 	}
 }
 

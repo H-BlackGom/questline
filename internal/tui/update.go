@@ -40,7 +40,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.Loading = true
 		return m, tea.Batch(LoadQuestsCmd(m.questService), LoadPlayerCmd(m.playerService))
-	case QuestToggledMsg:
+	case QuestStatusCycledMsg:
 		if msg.Err != nil {
 			m.Loading = false
 			m.Error = msg.Err
@@ -85,7 +85,7 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if questID := m.selectedQuestID(); questID != "" {
 			m.Loading = true
 			m.Error = nil
-			return m, ToggleQuestCmd(m.questService, questID)
+			return m, CycleQuestStatusCmd(m.questService, questID)
 		}
 		return m, nil
 	default:

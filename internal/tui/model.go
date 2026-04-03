@@ -26,7 +26,8 @@ type PlayerWithFlow = service.PlayerWithFlow
 
 type questCommandService interface {
 	GetQuestTree() ([]*domain.Quest, error)
-	CompleteQuest(string) (*service.CompletionResult, error)
+	GetQuest(string) (*domain.Quest, error)
+	UpdateQuestStatus(string, domain.QuestStatus) error
 }
 
 type playerCommandService interface {
